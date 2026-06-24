@@ -12,6 +12,12 @@ const firebaseConfig = {
   appId: "1:705914470184:web:d7571472c64dc6ee0e5a1d",
 };
 
-const app = initializeApp(firebaseConfig);
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+} catch (error) {
+  app = (window as any).__firebaseApp;
+}
+
 export const auth = getAuth(app);
 export const database = getDatabase(app);
