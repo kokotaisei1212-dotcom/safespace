@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { User } from 'firebase/auth';
 import { Post, Colors } from '@/app/types';
 import { gradients } from '@/app/utils/theme';
+import { HeartIcon, ChatIcon, SendIcon, GiftIcon, MoreIcon, HomeIcon } from './Icons';
 
 interface HomeProps {
   user: User;
@@ -26,6 +27,8 @@ export default function Home({ user, posts, c, onCreatePost, onDeletePost, onLik
       await onCreatePost(newPost);
       setNewPost('');
       setShowModal(false);
+    } catch (error) {
+      console.error('Post failed:', error);
     } finally {
       setIsPosting(false);
     }
@@ -66,8 +69,12 @@ export default function Home({ user, posts, c, onCreatePost, onDeletePost, onLik
           SafeSpace
         </h1>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <button style={{ background: 'none', border: 'none', color: c.text, fontSize: '18px', cursor: 'pointer', padding: 0 }}>heart</button>
-          <button style={{ background: 'none', border: 'none', color: c.text, fontSize: '18px', cursor: 'pointer', padding: 0 }}>chat</button>
+          <button style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <HeartIcon size={20} />
+          </button>
+          <button style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ChatIcon size={20} />
+          </button>
         </div>
       </div>
 
@@ -101,8 +108,7 @@ export default function Home({ user, posts, c, onCreatePost, onDeletePost, onLik
               backgroundColor: c.bg,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px'
+              justifyContent: 'center'
             }}>
               {i === 1 ? '+' : ''}
             </div>
@@ -112,79 +118,110 @@ export default function Home({ user, posts, c, onCreatePost, onDeletePost, onLik
 
       {/* Posts */}
       <div>
-        {posts.map((post) => (
-          <div key={post.id} style={{ borderBottom: `1px solid ${c.border}` }}>
-            {/* Post Header */}
-            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: gradients.pink }} />
-                <p style={{ margin: 0, fontSize: '13px', fontWeight: '500' }}>{post.userName}</p>
+        {posts.length === 0 ? (
+          <div style={{ padding: '40px 16px', textAlign: 'center', color: '#999', fontSize: '13px' }}>
+            No posts yet
+          </div>
+        ) : (
+          posts.map((post) => (
+            <div key={post.id} style={{ borderBottom: `1px solid ${c.border}` }}>
+              {/* Post Header */}
+              <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: gradients.pink }} />
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: '500' }}>{post.userName}</p>
+                </div>
+                {post.userId === user.uid && (
+                  <button 
+                    onClick={() => {
+                      if (confirm('Delete post?')) {
+                        onDeletePost(post.id);
+                      }
+                    }}
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      color: c.text, 
+                      cursor: 'pointer', 
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <MoreIcon size={18} />
+                  </button>
+                )}
               </div>
-              {post.userId === user.uid && (
-                <button onClick={() => onDeletePost(post.id)} style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', fontSize: '14px', padding: 0 }}>
-                  ...
-                </button>
-              )}
-            </div>
 
-            {/* Post Image */}
-            <div style={{ width: '100%', aspectRatio: '1', backgroundColor: c.button }} />
+              {/* Post Image */}
+              <div style={{ width: '100%', aspectRatio: '1', backgroundColor: c.button }} />
 
-            {/* Engagement Buttons */}
-            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', gap: '16px' }}>
+              {/* Engagement Buttons */}
+              <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <button
+                    onClick={() => onLike(post.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: likedPosts.includes(post.id) ? '#ff1493' : c.text,
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'color 0.2s',
+                    }}
+                  >
+                    <HeartIcon filled={likedPosts.includes(post.id)} size={20} />
+                  </button>
+                  <button style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ChatIcon size={20} />
+                  </button>
+                  <button style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <SendIcon size={20} />
+                  </button>
+                </div>
                 <button
-                  onClick={() => onLike(post.id)}
+                  onClick={() => onTip(post.id, post.userId)}
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: likedPosts.includes(post.id) ? '#ff1493' : c.text,
+                    color: c.text,
                     cursor: 'pointer',
-                    fontSize: '18px',
-                    padding: 0,
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}
                 >
-                  heart
+                  <GiftIcon size={20} />
                 </button>
-                <button style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', fontSize: '18px', padding: 0 }}>chat</button>
-                <button style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', fontSize: '18px', padding: 0 }}>send</button>
               </div>
-              <button
-                onClick={() => onTip(post.id, post.userId)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: c.text,
-                  cursor: 'pointer',
-                  fontSize: '18px',
-                  padding: 0,
-                }}
-              >
-                gift
-              </button>
-            </div>
 
-            {/* Likes */}
-            <div style={{ padding: '0 16px 12px 16px', fontSize: '13px', fontWeight: '600' }}>
-              {post.likes} likes
-            </div>
+              {/* Likes */}
+              <div style={{ padding: '0 16px 12px 16px', fontSize: '13px', fontWeight: '600' }}>
+                {post.likes} likes
+              </div>
 
-            {/* Caption */}
-            <div style={{ padding: '0 16px 8px 16px', fontSize: '13px', lineHeight: 1.4 }}>
-              <span style={{ fontWeight: '600' }}>{post.userName}</span> {post.content}
-            </div>
+              {/* Caption */}
+              <div style={{ padding: '0 16px 8px 16px', fontSize: '13px', lineHeight: 1.4 }}>
+                <span style={{ fontWeight: '600' }}>{post.userName}</span> {post.content}
+              </div>
 
-            {/* Comments */}
-            <div style={{ padding: '0 16px 12px 16px', fontSize: '12px', color: '#999' }}>
-              View all {post.comments.length} comments
-            </div>
+              {/* Comments */}
+              <div style={{ padding: '0 16px 12px 16px', fontSize: '12px', color: '#999' }}>
+                View all {post.comments.length} comments
+              </div>
 
-            {/* Time */}
-            <div style={{ padding: '0 16px 12px 16px', fontSize: '11px', color: '#999', textTransform: 'uppercase' }}>
-              2 hours ago
+              {/* Time */}
+              <div style={{ padding: '0 16px 12px 16px', fontSize: '11px', color: '#999', textTransform: 'uppercase' }}>
+                2 hours ago
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Create Modal */}
@@ -224,6 +261,7 @@ export default function Home({ user, posts, c, onCreatePost, onDeletePost, onLik
                   borderRadius: '6px',
                   cursor: 'pointer',
                   fontSize: '13px',
+                  fontWeight: '500',
                 }}
               >
                 Cancel
@@ -238,7 +276,7 @@ export default function Home({ user, posts, c, onCreatePost, onDeletePost, onLik
                   color: '#fff',
                   border: 'none',
                   borderRadius: '6px',
-                  cursor: 'pointer',
+                  cursor: newPost.trim() && !isPosting ? 'pointer' : 'not-allowed',
                   fontWeight: '600',
                   fontSize: '13px',
                   opacity: !newPost.trim() || isPosting ? 0.5 : 1,

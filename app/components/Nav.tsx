@@ -1,4 +1,5 @@
 import { TabType, Colors } from '@/app/types';
+import { HomeIcon, SearchIcon, MessageIcon, UserIcon, ExploreIcon } from './Icons';
 
 interface NavProps {
   tab: TabType;
@@ -7,11 +8,11 @@ interface NavProps {
 }
 
 export default function Nav({ tab, c, onTabChange }: NavProps) {
-  const navItems: Array<{ key: TabType; label: string }> = [
-    { key: 'home', label: 'H' },
-    { key: 'search', label: 'S' },
-    { key: 'messages', label: 'C' },
-    { key: 'profile', label: 'P' },
+  const navItems: Array<{ key: TabType; icon: React.ReactNode }> = [
+    { key: 'home', icon: <HomeIcon size={24} /> },
+    { key: 'search', icon: <SearchIcon size={24} /> },
+    { key: 'messages', icon: <MessageIcon size={24} /> },
+    { key: 'profile', icon: <UserIcon size={24} /> },
   ];
 
   return (
@@ -38,16 +39,15 @@ export default function Nav({ tab, c, onTabChange }: NavProps) {
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            fontSize: '16px',
             color: c.text,
             opacity: tab === item.key ? 1 : 0.5,
-            fontWeight: tab === item.key ? '600' : '400',
-            transition: 'opacity 0.2s, font-weight 0.2s',
+            transition: 'opacity 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = tab === item.key ? '1' : '0.5')}
         >
-          {item.label}
+          {item.icon}
         </button>
       ))}
     </div>
