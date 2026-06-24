@@ -71,21 +71,25 @@ export default function VerifyPage() {
       setSessionId(data.sessionId);
 
       // Stripe Identity Widget をロード
-      if (!window.Stripe) {
+      const stripe = (window as any).Stripe;
+      if (!stripe) {
         const script = document.createElement('script');
         script.src = 'https://js.stripe.com/v3/identity.js';
         script.async = true;
+        script.onload = () => {
+          const stripeLoaded = (window as any).Stripe;
+          if (stripeLoaded) {
+            stripeLoaded.redirectToVerificationSession({
+              sessionId: data.sessionId,
+            });
+          }
+        };
         document.head.appendChild(script);
+      } else {
+        stripe.redirectToVerificationSession({
+          sessionId: data.sessionId,
+        });
       }
-
-      // 少し遅延させて実行（スクリプトロード完了を待つ）
-      setTimeout(() => {
-        if (window.Stripe) {
-          window.Stripe.redirectToVerificationSession({
-            sessionId: data.sessionId,
-          });
-        }
-      }, 1000);
     } catch (err: any) {
       setError(err.message);
     } finally {
