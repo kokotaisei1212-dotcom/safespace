@@ -8,6 +8,7 @@ import { getColors } from '@/app/utils/theme';
 import { i18n } from '@/app/utils/i18n';
 import { useFirebase } from '@/app/hooks/useFirebase';
 import Auth from '@/app/components/Auth';
+import IDVerification from '@/app/components/IDVerification';
 import Home from '@/app/components/Home';
 import Search from '@/app/components/Search';
 import Profile from '@/app/components/Profile';
@@ -15,9 +16,11 @@ import Settings from '@/app/components/Settings';
 import Messages from '@/app/components/Messages';
 import Explore from '@/app/components/Explore';
 import Nav from '@/app/components/Nav';
+import TipModal from '@/app/components/TipModal';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [verified, setVerified] = useState(false);
   const [tab, setTab] = useState<TabType>('home');
   const [theme, setTheme] = useState<Theme>('dark');
   const [lang, setLang] = useState<Lang>('ja');
@@ -25,8 +28,9 @@ export default function App() {
   const [blocked, setBlocked] = useState<string[]>([]);
   const [likedPosts, setLikedPosts] = useState<string[]>([]);
   const [viewingUser, setViewingUser] = useState<any>(null);
+  const [tipModal, setTipModal] = useState<{ creatorId: string; creatorName: string } | null>(null);
 
-  const { posts, users, profile, loadData, createPost, deletePost, updateProfile } = useFirebase();
+  const { posts, users, profile, loadData, createPost, deletePost } = useFirebase();
   const c = getColors(theme);
   const t = i18n[lang];
 
@@ -47,6 +51,10 @@ export default function App() {
     return <Auth c={c} i18n={t} />;
   }
 
+  if (!verified) {
+    return <IDVerification c={c} onVerified={setVerified} />;
+  }
+
   const displayProfile = viewingUser || profile;
 
   return (
@@ -55,12 +63,16 @@ export default function App() {
         <Home
           user={user}
           posts={posts}
-          profile={profile}
           c={c}
           onCreatePost={(content) => createPost(user, profile, content)}
           onDeletePost={deletePost}
           onLike={(id) => setLikedPosts(likedPosts.includes(id) ? likedPosts.filter(x => x !== id) : [...likedPosts, id])}
-          onComment={(postId, text) => console.log('Comment:', postId, text)}
+          onTip={(postId, creatorId) => {
+            const creator = posts.find(p => p.id === postId);
+            if (creator) {
+              setTipModal({ creatorId, creatorName: creator.userName });
+            }
+          }}
           likedPosts={likedPosts}
         />
       )}
@@ -110,6 +122,18 @@ export default function App() {
       )}
 
       <Nav tab={tab} c={c} onTabChange={(t) => { setTab(t); setViewingUser(null); }} />
+
+      {tipModal && (
+        <TipModal
+          c={c}
+          creatorName={tipModal.creatorName}
+          onClose={() => setTipModal(null)}
+          onSend={async (amount) => {
+            console.log(`Tip $${amount} to ${tipModal.creatorId}`);
+            setTipModal(null);
+          }}
+        />
+      )}
     </div>
   );
 }
