@@ -63,11 +63,10 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState('');
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [following, setFollowing] = useState(new Set<string>());
-  const [blocked, setBlocked] = useState(new Set<string>());
+  const [following, setFollowing] = useState<string[]>([]);
+  const [blocked, setBlocked] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchMode, setSearchMode] = useState<'users' | 'posts'>('users');
-  const [likedPosts, setLikedPosts] = useState(new Set<string>());
+  const [likedPosts, setLikedPosts] = useState<string[]>([]);
   const [authMode, setAuthMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -78,8 +77,6 @@ export default function App() {
   const [editMode, setEditMode] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
   const [viewingUser, setViewingUser] = useState<UserProfile | null>(null);
-  const [expandedPost, setExpandedPost] = useState<string | null>(null);
-  const [newComment, setNewComment] = useState('');
 
   const t = i18n[lang];
   const colors = {
@@ -91,7 +88,6 @@ export default function App() {
   useEffect(() => {
     const browserLang = navigator.language.startsWith('ja') ? 'ja' : 'en';
     setLang(browserLang as Lang);
-
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
@@ -109,7 +105,6 @@ export default function App() {
         setProfile(profileSnapshot.val());
         setEditData(profileSnapshot.val());
       }
-
       const postsRef = ref(database, 'posts');
       const postsSnapshot = await get(postsRef);
       if (postsSnapshot.exists()) {
@@ -118,7 +113,6 @@ export default function App() {
         }));
         setPosts(postsData.sort((a, b) => b.timestamp - a.timestamp));
       }
-
       const usersRef = ref(database, 'users');
       const usersSnapshot = await get(usersRef);
       if (usersSnapshot.exists()) {
@@ -182,32 +176,16 @@ export default function App() {
     }
   };
 
-  const handleAddComment = async (postId: string) => {
-    if (!newComment.trim() || !user) return;
-    const post = posts.find(p => p.id === postId);
-    if (!post) return;
-    const updatedComments = [...post.comments, { userId: user.uid, userName: profile?.name || 'User', text: newComment, timestamp: Date.now() }];
-    await update(ref(database, `posts/${postId}`), { comments: updatedComments });
-    setPosts(posts.map(p => p.id === postId ? { ...p, comments: updatedComments } : p));
-    setNewComment('');
-  };
-
   const handleLike = (postId: string) => {
-    const newLiked = new Set(likedPosts);
-    newLiked.has(postId) ? newLiked.delete(postId) : newLiked.add(postId);
-    setLikedPosts(newLiked);
+    setLikedPosts(likedPosts.includes(postId) ? likedPosts.filter(id => id !== postId) : [...likedPosts, postId]);
   };
 
   const handleFollow = (userId: string) => {
-    const newFollowing = new Set(following);
-    newFollowing.has(userId) ? newFollowing.delete(userId) : newFollowing.add(userId);
-    setFollowing(newFollowing);
+    setFollowing(following.includes(userId) ? following.filter(id => id !== userId) : [...following, userId]);
   };
 
   const handleBlock = (userId: string) => {
-    const newBlocked = new Set(blocked);
-    newBlocked.has(userId) ? newBlocked.delete(userId) : newBlocked.add(userId);
-    setBlocked(newBlocked);
+    setBlocked(blocked.includes(userId) ? blocked.filter(id => id !== userId) : [...blocked, userId]);
   };
 
   const handleSaveProfile = async () => {
@@ -223,10 +201,10 @@ export default function App() {
 
   const renderNav = () => (
     <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: c.bg, borderTop: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
-      <button onClick={() => setTab('home' as TabType)} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', color: c.text, opacity: tab === 'home' ? 1 : 0.5 }}>⌂</button>
-      <button onClick={() => setTab('search' as TabType)} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', color: c.text, opacity: tab === 'search' ? 1 : 0.5 }}>🔍</button>
-      <button onClick={() => setTab('profile' as TabType)} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', color: c.text, opacity: tab === 'profile' ? 1 : 0.5 }}>👤</button>
-      <button onClick={() => setTab('settings' as TabType)} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', color: c.text, opacity: tab === 'settings' ? 1 : 0.5 }}>⚙️</button>
+      <button onClick={() => setTab('home')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', color: c.text, opacity: tab === 'home' ? 1 : 0.5 }}>H</button>
+      <button onClick={() => setTab('search')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', color: c.text, opacity: tab === 'search' ? 1 : 0.5 }}>S</button>
+      <button onClick={() => setTab('profile')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', color: c.text, opacity: tab === 'profile' ? 1 : 0.5 }}>P</button>
+      <button onClick={() => setTab('settings')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', color: c.text, opacity: tab === 'settings' ? 1 : 0.5 }}>G</button>
     </div>
   );
 
@@ -268,7 +246,7 @@ export default function App() {
                 </div>
                 <p style={{ margin: '8px 0', fontSize: '14px', lineHeight: 1.5 }}>{post.content}</p>
                 <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#999', marginBottom: '8px' }}>
-                  <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', color: likedPosts.has(post.id) ? c.accent : '#999', cursor: 'pointer', fontSize: '12px' }}>Like {post.likes}</button>
+                  <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', color: likedPosts.includes(post.id) ? c.accent : '#999', cursor: 'pointer', fontSize: '12px' }}>Like {post.likes}</button>
                   <span>Comment {post.comments.length}</span>
                 </div>
               </div>
@@ -281,7 +259,7 @@ export default function App() {
   }
 
   if (tab === 'search') {
-    const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) && !blocked.has(u.id));
+    const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) && !blocked.includes(u.id));
     return (
       <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: c.bg, color: c.text, minHeight: '100vh', paddingBottom: '80px' }}>
         <div style={{ padding: '16px', borderBottom: `1px solid ${c.border}`, position: 'sticky', top: 0, backgroundColor: c.bg, zIndex: 100 }}>
@@ -293,7 +271,7 @@ export default function App() {
               <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)' }} />
               <div><p style={{ margin: 0, fontWeight: '700', fontSize: '14px' }}>{u.name}</p><p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#999' }}>{u.bio}</p></div>
             </div>
-            <button onClick={() => handleFollow(u.id)} style={{ padding: '6px 16px', backgroundColor: following.has(u.id) ? c.button : c.accent, color: following.has(u.id) ? c.text : '#fff', border: 'none', borderRadius: '20px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>{following.has(u.id) ? t.following_label : t.follow}</button>
+            <button onClick={() => handleFollow(u.id)} style={{ padding: '6px 16px', backgroundColor: following.includes(u.id) ? c.button : c.accent, color: following.includes(u.id) ? c.text : '#fff', border: 'none', borderRadius: '20px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>{following.includes(u.id) ? t.following_label : t.follow}</button>
           </div>
         ))}</div>
         {renderNav()}
@@ -316,11 +294,11 @@ export default function App() {
         </div>
         <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-around', borderBottom: `1px solid ${c.border}` }}>
           <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>{posts.filter(p => p.userId === displayProfile?.id).length}</p><p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#999' }}>{t.posts}</p></div>
-          <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>{following.size}</p><p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#999' }}>{t.following}</p></div>
+          <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>{following.length}</p><p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#999' }}>{t.following}</p></div>
         </div>
         {viewingUser && (
           <div style={{ padding: '16px', display: 'flex', gap: '8px' }}>
-            <button onClick={() => handleFollow(viewingUser.id)} style={{ flex: 1, padding: '12px', backgroundColor: following.has(viewingUser.id) ? c.button : c.accent, color: following.has(viewingUser.id) ? c.text : '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>{following.has(viewingUser.id) ? t.following_label : t.follow}</button>
+            <button onClick={() => handleFollow(viewingUser.id)} style={{ flex: 1, padding: '12px', backgroundColor: following.includes(viewingUser.id) ? c.button : c.accent, color: following.includes(viewingUser.id) ? c.text : '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>{following.includes(viewingUser.id) ? t.following_label : t.follow}</button>
           </div>
         )}
         {renderNav()}
@@ -335,9 +313,6 @@ export default function App() {
           <h1 style={{ fontSize: '28px', fontWeight: '700', margin: 0 }}>{t.settings}</h1>
         </div>
         <div style={{ padding: '16px' }}>
-          <div style={{ marginBottom: '12px' }}>
-            <button onClick={() => setEditMode('profile')} style={{ width: '100%', padding: '12px', textAlign: 'left', backgroundColor: c.button, color: c.text, border: 'none', borderRadius: '6px', fontSize: '14px', cursor: 'pointer' }}>{t.edit_profile}</button>
-          </div>
           <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: `1px solid ${c.border}` }}>
             <p style={{ fontSize: '14px', fontWeight: '700', margin: '0 0 8px 0' }}>{t.theme}</p>
             <div style={{ display: 'flex', gap: '8px' }}>
