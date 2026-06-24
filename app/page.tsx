@@ -5,6 +5,8 @@ import { onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWith
 import { auth, database } from '@/lib/firebase';
 import { ref, get, push, set, remove, update } from 'firebase/database';
 
+type TabType = 'home' | 'search' | 'profile' | 'settings';
+
 interface Post {
   id: string;
   userId: string;
@@ -133,7 +135,7 @@ type Theme = 'dark' | 'light';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [tab, setTab] = useState('home');
+  const [tab, setTab] = useState<TabType>('home');
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState('');
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -333,13 +335,13 @@ export default function App() {
         <div style={{ width: '100%', maxWidth: '400px' }}>
           <h1 style={{ fontSize: '48px', fontWeight: '700', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', margin: '0 0 40px 0' }}>SafeSpace</h1>
 
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.email} style={{ width: '100%', padding: '12px', marginBottom: '12px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '8px', fontSize: '14px', outline: 'none' }} />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t.password} style={{ width: '100%', padding: '12px', marginBottom: '20px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '8px', fontSize: '14px', outline: 'none' }} />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.email} style={{ width: '100%', padding: '12px', marginBottom: '12px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t.password} style={{ width: '100%', padding: '12px', marginBottom: '20px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
 
-          <button onClick={authMode === 'login' ? handleLogin : handleSignup} disabled={loading} style={{ width: '100%', padding: '12px', backgroundColor: c.accent, color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '700', cursor: 'pointer', marginBottom: '12px' }}>
+          <button onClick={authMode === 'login' ? handleLogin : handleSignup} disabled={loading} style={{ width: '100%', padding: '12px', backgroundColor: c.accent, color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '700', cursor: 'pointer', marginBottom: '12px', boxSizing: 'border-box' }}>
             {loading ? 'Loading...' : (authMode === 'login' ? t.login : t.signup)}
           </button>
-          <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} style={{ width: '100%', padding: '12px', backgroundColor: c.button, color: c.text, border: 'none', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}>
+          <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} style={{ width: '100%', padding: '12px', backgroundColor: c.button, color: c.text, border: 'none', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', boxSizing: 'border-box' }}>
             {authMode === 'login' ? t.signup : t.login}
           </button>
         </div>
@@ -357,7 +359,7 @@ export default function App() {
         <div style={{ padding: '16px', borderBottom: `1px solid ${c.border}` }}>
           <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)', flexShrink: 0 }} />
-            <textarea value={newPost} onChange={(e) => setNewPost(e.target.value)} placeholder={t.whatsHappening} style={{ flex: 1, padding: '12px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '20px', fontSize: '14px', fontFamily: 'inherit', resize: 'none', outline: 'none' }} rows={3} />
+            <textarea value={newPost} onChange={(e) => setNewPost(e.target.value)} placeholder={t.whatsHappening} style={{ flex: 1, padding: '12px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '20px', fontSize: '14px', fontFamily: 'inherit', resize: 'none', outline: 'none', boxSizing: 'border-box' }} rows={3} />
           </div>
           <button onClick={handleCreatePost} disabled={!newPost.trim()} style={{ marginLeft: 'auto', display: 'block', padding: '8px 24px', backgroundColor: c.accent, color: '#fff', border: 'none', borderRadius: '20px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', opacity: newPost.trim() ? 1 : 0.5 }}>
             {t.post}
@@ -398,7 +400,7 @@ export default function App() {
                         ))}
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder={t.addComment} style={{ flex: 1, padding: '8px', backgroundColor: c.bg, color: c.text, border: `1px solid ${c.border}`, borderRadius: '4px', fontSize: '12px', outline: 'none' }} />
+                        <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder={t.addComment} style={{ flex: 1, padding: '8px', backgroundColor: c.bg, color: c.text, border: `1px solid ${c.border}`, borderRadius: '4px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
                         <button onClick={() => handleAddComment(post.id)} style={{ padding: '8px 12px', backgroundColor: c.accent, color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>Send</button>
                       </div>
                     </div>
@@ -413,18 +415,10 @@ export default function App() {
         </div>
 
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: c.bg, borderTop: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
-          <button onClick={() => setTab('home')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'home' ? 1 : 0.5 }}>
-            H
-          </button>
-          <button onClick={() => setTab('search')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'search' ? 1 : 0.5 }}>
-            S
-          </button>
-          <button onClick={() => setTab('profile')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'profile' ? 1 : 0.5 }}>
-            P
-          </button>
-          <button onClick={() => setTab('settings')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'settings' ? 1 : 0.5 }}>
-            G
-          </button>
+          <button onClick={() => setTab('home')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'home' ? 1 : 0.5 }}>H</button>
+          <button onClick={() => setTab('search')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'search' ? 1 : 0.5 }}>S</button>
+          <button onClick={() => setTab('profile')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'profile' ? 1 : 0.5 }}>P</button>
+          <button onClick={() => setTab('settings')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'settings' ? 1 : 0.5 }}>G</button>
         </div>
       </div>
     );
@@ -441,7 +435,7 @@ export default function App() {
             <button onClick={() => setSearchMode('users')} style={{ flex: 1, padding: '8px', backgroundColor: searchMode === 'users' ? c.accent : c.button, color: searchMode === 'users' ? '#fff' : c.text, border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>Users</button>
             <button onClick={() => setSearchMode('posts')} style={{ flex: 1, padding: '8px', backgroundColor: searchMode === 'posts' ? c.accent : c.button, color: searchMode === 'posts' ? '#fff' : c.text, border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>Posts</button>
           </div>
-          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={searchMode === 'users' ? t.searchUsers : t.searchPosts} style={{ width: '100%', padding: '12px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '20px', fontSize: '14px', outline: 'none' }} />
+          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={searchMode === 'users' ? t.searchUsers : t.searchPosts} style={{ width: '100%', padding: '12px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '20px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
         </div>
 
         {searchMode === 'users' ? (
@@ -474,10 +468,10 @@ export default function App() {
         )}
 
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: c.bg, borderTop: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
-          <button onClick={() => setTab('home')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'home' ? 1 : 0.5 }}>H</button>
-          <button onClick={() => setTab('search')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'search' ? 1 : 0.5 }}>S</button>
-          <button onClick={() => setTab('profile')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'profile' ? 1 : 0.5 }}>P</button>
-          <button onClick={() => setTab('settings')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'settings' ? 1 : 0.5 }}>G</button>
+          <button onClick={() => setTab('home')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'home' ? 1 : 0.5 }}>H</button>
+          <button onClick={() => setTab('search')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'search' ? 1 : 0.5 }}>S</button>
+          <button onClick={() => setTab('profile')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'profile' ? 1 : 0.5 }}>P</button>
+          <button onClick={() => setTab('settings')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'settings' ? 1 : 0.5 }}>G</button>
         </div>
       </div>
     );
@@ -506,19 +500,19 @@ export default function App() {
           <div style={{ padding: '16px', borderBottom: `1px solid ${c.border}` }}>
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '12px', fontWeight: '700', display: 'block', marginBottom: '4px' }}>{t.name}</label>
-              <input type="text" value={editData.name || ''} onChange={(e) => setEditData({...editData, name: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '6px', fontSize: '12px', outline: 'none' }} />
+              <input type="text" value={editData.name || ''} onChange={(e) => setEditData({...editData, name: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '6px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
             </div>
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '12px', fontWeight: '700', display: 'block', marginBottom: '4px' }}>{t.username}</label>
-              <input type="text" value={editData.username || ''} onChange={(e) => setEditData({...editData, username: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '6px', fontSize: '12px', outline: 'none' }} />
+              <input type="text" value={editData.username || ''} onChange={(e) => setEditData({...editData, username: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '6px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
             </div>
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '12px', fontWeight: '700', display: 'block', marginBottom: '4px' }}>{t.bio}</label>
-              <textarea value={editData.bio || ''} onChange={(e) => setEditData({...editData, bio: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', resize: 'none', outline: 'none' }} rows={3} />
+              <textarea value={editData.bio || ''} onChange={(e) => setEditData({...editData, bio: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', resize: 'none', outline: 'none', boxSizing: 'border-box' }} rows={3} />
             </div>
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '12px', fontWeight: '700', display: 'block', marginBottom: '4px' }}>{t.website}</label>
-              <input type="text" value={editData.website || ''} onChange={(e) => setEditData({...editData, website: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '6px', fontSize: '12px', outline: 'none' }} />
+              <input type="text" value={editData.website || ''} onChange={(e) => setEditData({...editData, website: e.target.value})} style={{ width: '100%', padding: '8px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '6px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
             </div>
             <button onClick={handleSaveProfile} style={{ marginRight: '8px', padding: '8px 16px', backgroundColor: c.accent, color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>{t.save}</button>
             <button onClick={() => setEditMode(null)} style={{ padding: '8px 16px', backgroundColor: c.button, color: c.text, border: 'none', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>{t.cancel}</button>
@@ -559,10 +553,10 @@ export default function App() {
         )}
 
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: c.bg, borderTop: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
-          <button onClick={() => setTab('home')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'home' ? 1 : 0.5 }}>H</button>
-          <button onClick={() => setTab('search')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'search' ? 1 : 0.5 }}>S</button>
-          <button onClick={() => setTab('profile')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'profile' ? 1 : 0.5 }}>P</button>
-          <button onClick={() => setTab('settings')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'settings' ? 1 : 0.5 }}>G</button>
+          <button onClick={() => setTab('home')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'home' ? 1 : 0.5 }}>H</button>
+          <button onClick={() => setTab('search')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'search' ? 1 : 0.5 }}>S</button>
+          <button onClick={() => setTab('profile')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'profile' ? 1 : 0.5 }}>P</button>
+          <button onClick={() => setTab('settings')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'settings' ? 1 : 0.5 }}>G</button>
         </div>
       </div>
     );
@@ -654,10 +648,10 @@ export default function App() {
         </div>
 
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: c.bg, borderTop: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
-          <button onClick={() => setTab('home')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'home' ? 1 : 0.5 }}>H</button>
-          <button onClick={() => setTab('search')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'search' ? 1 : 0.5 }}>S</button>
-          <button onClick={() => setTab('profile')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'profile' ? 1 : 0.5 }}>P</button>
-          <button onClick={() => setTab('settings')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', opacity: tab === 'settings' ? 1 : 0.5 }}>G</button>
+          <button onClick={() => setTab('home')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'home' ? 1 : 0.5 }}>H</button>
+          <button onClick={() => setTab('search')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'search' ? 1 : 0.5 }}>S</button>
+          <button onClick={() => setTab('profile')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'profile' ? 1 : 0.5 }}>P</button>
+          <button onClick={() => setTab('settings')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: c.text, opacity: tab === 'settings' ? 1 : 0.5 }}>G</button>
         </div>
       </div>
     );
