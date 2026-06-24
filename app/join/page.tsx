@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth, database } from '@/lib/firebase';
 import { ref, set } from 'firebase/database';
 import { useRouter } from 'next/navigation';
@@ -12,25 +12,37 @@ export default function JoinPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const router = useRouter();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setMessage('');
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // ユーザー情報を Realtime Database に保存
       await set(ref(database, `users/${user.uid}`), {
         id: user.uid,
         email,
         name,
         createdAt: new Date().toISOString(),
+        emailVerified: false,
       });
 
-      router.push('/feed');
+      // メール確認メールを送信
+      await sendEmailVerification(user);
+
+      setMessage('確認メールを送信しました。メールをご確認ください。');
+      
+      // 3秒後に Feed へリダイレクト
+      setTimeout(() => {
+        router.push('/feed');
+      }, 3000);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -47,6 +59,12 @@ export default function JoinPage() {
         {error && (
           <div style={{ color: '#d32f2f', marginBottom: '15px', fontSize: '14px' }}>
             {error}
+          </div>
+        )}
+
+        {message && (
+          <div style={{ color: '#4caf50', marginBottom: '15px', fontSize: '14px' }}>
+            {message}
           </div>
         )}
 
