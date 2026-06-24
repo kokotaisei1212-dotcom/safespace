@@ -1,15 +1,17 @@
+'use client';
+
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyAf0a-8i3p0xTd82j9yRhr0YDxWu0AwP8",
+  authDomain: "safespace-d74dc.firebaseapp.com",
+  databaseURL: "https://safespace-d74dc-default-rtdb.firebaseio.com",
+  projectId: "safespace-d74dc",
+  storageBucket: "safespace-d74dc.firebasestorage.app",
+  messagingSenderId: "705914470184",
+  appId: "1:705914470184:web:d7571472c64dc6ee0e5a1d",
 };
 
 const app = initializeApp(firebaseConfig);
