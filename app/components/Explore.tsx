@@ -1,29 +1,50 @@
 import { Colors } from '@/app/types';
-import { gradients } from '@/app/utils/theme';
 
 interface ExploreProps {
   c: Colors;
 }
 
 export default function Explore({ c }: ExploreProps) {
-  const reels = [
-    { id: '1', creator: 'Emma', title: 'Women in Tech 💻' },
-    { id: '2', creator: 'Sophia', title: 'Lesbian Pride 🏳️‍🌈' },
-    { id: '3', creator: 'Olivia', title: 'LGBTQ+ Love Stories ❤️' },
-    { id: '4', creator: 'Maya', title: 'Women Empowerment 💪' },
-  ];
+  const posts = Array(12).fill(0).map((_, i) => ({ id: i, views: Math.floor(Math.random() * 100000) }));
 
   return (
-    <div style={{ maxWidth: '468px', margin: '0 auto', backgroundColor: c.bg, color: c.text, minHeight: '100vh', borderLeft: `1px solid ${c.border}`, borderRight: `1px solid ${c.border}` }}>
-      <div style={{ padding: '16px', borderBottom: `1px solid ${c.border}`, textAlign: 'center', fontWeight: '600' }}>Explore</div>
+    <div style={{ 
+      maxWidth: '468px', 
+      margin: '0 auto', 
+      backgroundColor: c.bg, 
+      color: c.text, 
+      minHeight: '100vh',
+      borderLeft: `1px solid ${c.border}`,
+      borderRight: `1px solid ${c.border}`,
+      paddingBottom: '80px'
+    }}>
+      {/* Header */}
+      <div style={{ 
+        padding: '16px',
+        borderBottom: `1px solid ${c.border}`,
+        position: 'sticky',
+        top: 0,
+        backgroundColor: c.bg,
+        zIndex: 100
+      }}>
+        <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>Explore</h1>
+      </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', padding: '8px' }}>
-        {reels.map((reel) => (
-          <div key={reel.id} style={{ background: gradients.rainbow, borderRadius: '8px', padding: '2px', cursor: 'pointer' }}>
-            <div style={{ backgroundColor: c.bg, borderRadius: '8px', padding: '24px', textAlign: 'center', minHeight: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '8px' }}>
-              <div style={{ fontSize: '32px' }}>🎬</div>
-              <p style={{ margin: 0, fontSize: '12px', fontWeight: '600' }}>{reel.title}</p>
-              <p style={{ margin: 0, fontSize: '11px', color: '#999' }}>by {reel.creator}</p>
+      {/* Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px', padding: '2px' }}>
+        {posts.map((post) => (
+          <div
+            key={post.id}
+            style={{
+              aspectRatio: '1',
+              backgroundColor: c.button,
+              cursor: 'pointer',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ position: 'absolute', bottom: '8px', left: '8px', fontSize: '11px', color: '#fff', fontWeight: '600' }}>
+              {post.views.toLocaleString()} views
             </div>
           </div>
         ))}

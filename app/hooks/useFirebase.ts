@@ -1,73 +1,90 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { User } from 'firebase/auth';
-import { ref, get, push, set, remove, update } from 'firebase/database';
+import { ref, get, push, remove, update } from 'firebase/database';
 import { database } from '@/lib/firebase';
-import { Post, UserProfile } from '@/app/types';
+import { Post, UserProfile, Comment } from '@/app/types';
 
-export const useFirebase = () => {
+export function useFirebase() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
-  const loadData = useCallback(async (uid: string) => {
+  const loadData = useCallback(async (userId: string) => {
     try {
-      const profileRef = ref(database, `users/${uid}`);
-      const profileSnapshot = await get(profileRef);
-      if (profileSnapshot.exists()) setProfile(profileSnapshot.val());
-
-      const postsRef = ref(database, 'posts');
-      const postsSnapshot = await get(postsRef);
-      if (postsSnapshot.exists()) {
-        const data = Object.entries(postsSnapshot.val()).map(([id, d]: any) => ({
-          id, ...d, comments: d.comments || [],
-        }));
-        setPosts(data.sort((a, b) => b.timestamp - a.timestamp));
+      // Load user profile
+      const userRef = ref(database, `users/${userId}`);
+      const userSnap = await get(userRef);
+      if (userSnap.exists()) {
+        setProfile({ id: userId, ...userSnap.val() });
       }
 
+      // Load all users
       const usersRef = ref(database, 'users');
-      const usersSnapshot = await get(usersRef);
-      if (usersSnapshot.exists()) {
-        const data = Object.entries(usersSnapshot.val()).filter(([id]) => id !== uid).map(([id, d]: any) => ({ id, ...d }));
-        setUsers(data.filter((u: any) => !u.name?.includes('bot')));
+      const usersSnap = await get(usersRef);
+      if (usersSnap.exists()) {
+        const allUsers: UserProfile[] = [];
+        usersSnap.forEach((child) => {
+          allUsers.push({ id: child.key || '', ...child.val() });
+        });
+        setUsers(allUsers);
+      }
+
+      // Load posts
+      const postsRef = ref(database, 'posts');
+      const postsSnap = await get(postsRef);
+      if (postsSnap.exists()) {
+        const allPosts: Post[] = [];
+        postsSnap.forEach((child) => {
+          allPosts.push({ id: child.key || '', ...child.val() });
+        });
+        setPosts(allPosts.sort((a, b) => b.timestamp - a.timestamp));
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Load data error:', error);
     }
   }, []);
 
-  const createPost = useCallback(async (user: User | null, profile: UserProfile | null, content: string) => {
-    if (!content.trim() || !user) return;
+  const createPost = useCallback(async (user: User, profile: UserProfile | null, content: string) => {
+    if (!content.trim()) return;
+    
     try {
-      await push(ref(database, 'posts'), {
+      const post: Post = {
+        id: '',
         userId: user.uid,
-        userName: profile?.name || 'User',
+        userName: profile?.name || user.email || '',
+        avatar: profile?.avatar || '',
         content,
         timestamp: Date.now(),
         likes: 0,
         comments: [],
-      });
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  }, []);
+        shares: 0,
+        hashtags: [],
+      };
 
-  const deletePost = useCallback(async (postId: string) => {
-    try {
-      await remove(ref(database, `posts/${postId}`));
-      setPosts(posts.filter(p => p.id !== postId));
+      const postsRef = ref(database, 'posts');
+      const newPostRef = await push(postsRef, post);
+      setPosts([{ ...post, id: newPostRef.key || '' }, ...posts]);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Create post error:', error);
     }
   }, [posts]);
 
-  const updateProfile = useCallback(async (uid: string, data: any) => {
+  const deletePost = useCallback(async (postId: string) => {
     try {
-      await update(ref(database, `users/${uid}`), data);
-      setProfile(data);
+      const postRef = ref(database, `posts/${postId}`);
+      await remove(postRef);
+      setPosts(posts.filter(p => p.id !== postId));
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Delete post error:', error);
     }
-  }, []);
+  }, [posts]);
 
-  return { posts, users, profile, loadData, createPost, deletePost, updateProfile };
-};
+  return {
+    posts,
+    users,
+    profile,
+    loadData,
+    createPost,
+    deletePost,
+  };
+}

@@ -1,75 +1,52 @@
 import { useState, useCallback } from 'react';
-import { Transaction, Subscription } from '@/app/types';
 
 export const useStripe = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const sendTip = useCallback(async (creatorId: string, senderId: string, amount: number) => {
-    const fee = Math.round(amount * 0.15);
-    const net = amount - fee;
-
-    const transaction: Transaction = {
-      id: Date.now().toString(),
-      creatorId,
-      type: 'tip',
-      amount,
-      fee,
-      net,
-      timestamp: Date.now(),
-      status: 'completed',
-    };
-
-    setTransactions([...transactions, transaction]);
-
+  const sendTip = useCallback(async (senderId: string, creatorId: string, amount: number) => {
+    setLoading(true);
+    setError('');
     try {
       const response = await fetch('/api/payments/tip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creatorId, senderId, amount }),
+        body: JSON.stringify({ senderId, creatorId, amount }),
       });
-      return response.ok;
-    } catch (error) {
-      console.error('Tip failed:', error);
-      return false;
+      if (!response.ok) {
+        throw new Error('Tip failed');
+      }
+      const data = await response.json();
+      return data;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
     }
-  }, [transactions]);
+  }, []);
 
-  const subscribe = useCallback(async (creatorId: string, subscriberId: string, price: number) => {
-    const subscription: Subscription = {
-      id: Date.now().toString(),
-      creatorId,
-      subscriberId,
-      price,
-      status: 'active',
-      startDate: Date.now(),
-      nextBillingDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
-    };
-
-    setSubscriptions([...subscriptions, subscription]);
-
+  const requestPayout = useCallback(async (creatorId: string, amount: number) => {
+    setLoading(true);
+    setError('');
     try {
-      const response = await fetch('/api/payments/subscribe', {
+      const response = await fetch('/api/payments/payout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creatorId, subscriberId, price }),
+        body: JSON.stringify({ creatorId, amount }),
       });
-      return response.ok;
-    } catch (error) {
-      console.error('Subscription failed:', error);
-      return false;
+      if (!response.ok) {
+        throw new Error('Payout request failed');
+      }
+      const data = await response.json();
+      return data;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
     }
-  }, [subscriptions]);
+  }, []);
 
-  const getEarnings = useCallback((creatorId: string) => {
-    const creatorTransactions = transactions.filter(t => t.creatorId === creatorId && t.status === 'completed');
-    const total = creatorTransactions.reduce((sum, t) => sum + t.net, 0);
-    const monthly = creatorTransactions
-      .filter(t => Date.now() - t.timestamp < 30 * 24 * 60 * 60 * 1000)
-      .reduce((sum, t) => sum + t.net, 0);
-
-    return { total, monthly, transactions: creatorTransactions };
-  }, [transactions]);
-
-  return { transactions, subscriptions, sendTip, subscribe, getEarnings };
+  return { loading, error, sendTip, requestPayout };
 };

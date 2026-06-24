@@ -3,23 +3,37 @@ import { Story } from '@/app/types';
 
 export const useStories = () => {
   const [stories, setStories] = useState<Story[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const createStory = useCallback(async (userId: string, userName: string, avatar: string, media: string) => {
-    const story: Story = {
-      id: Date.now().toString(),
-      userId,
-      userName,
-      avatar,
-      media,
-      timestamp: Date.now(),
-      viewed: false,
-    };
-    setStories([...stories, story]);
+  const loadStories = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Firebase から stories を取得
+      setStories([]);
+    } catch (error) {
+      console.error('Load stories error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const createStory = useCallback(async (userId: string, image: string) => {
+    try {
+      const story: Story = {
+        id: Date.now().toString(),
+        userId,
+        userName: 'User',
+        avatar: '',
+        image,
+        timestamp: Date.now(),
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+        viewed: false,
+      };
+      setStories([...stories, story]);
+    } catch (error) {
+      console.error('Create story error:', error);
+    }
   }, [stories]);
 
-  const viewStory = useCallback((storyId: string) => {
-    setStories(stories.map(s => s.id === storyId ? { ...s, viewed: true } : s));
-  }, [stories]);
-
-  return { stories, createStory, viewStory };
+  return { stories, loading, loadStories, createStory };
 };

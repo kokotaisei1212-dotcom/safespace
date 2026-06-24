@@ -1,41 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ref, get } from 'firebase/database';
 import { database } from '@/lib/firebase';
-import { ref, push, set, get } from 'firebase/database';
+import { Notification } from '@/app/types';
 
-export async function POST(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const { userId, type, fromUserId, postId, message } = await req.json();
+    const userId = request.nextUrl.searchParams.get('userId');
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    }
 
-    const notificationsRef = ref(database, `notifications/${userId}`);
-    const newNotificationRef = push(notificationsRef);
+    const notifRef = ref(database, 'notifications');
+    const snapshot = await get(notifRef);
+    
+    if (!snapshot.exists()) {
+      return NextResponse.json([]);
+    }
 
-    await set(newNotificationRef, {
-      id: newNotificationRef.key,
-      type,
-      fromUserId,
-      postId,
-      message,
-      read: false,
-      createdAt: new Date().toISOString(),
+    const notifications: Notification[] = [];
+    snapshot.forEach((child) => {
+      const notif = child.val();
+      if (notif.userId === userId) {
+        notifications.push({ id: child.key || '', ...notif });
+      }
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(notifications.sort((a, b) => b.timestamp - a.timestamp));
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-}
-
-export async function GET(req: NextRequest) {
-  try {
-    const userId = req.nextUrl.searchParams.get('userId');
-    if (!userId) throw new Error('userId required');
-
-    const notificationsRef = ref(database, `notifications/${userId}`);
-    const snapshot = await get(notificationsRef);
-    const notifications = snapshot.val() || {};
-
-    return NextResponse.json({ notifications: Object.values(notifications) });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

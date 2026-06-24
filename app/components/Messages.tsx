@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Colors } from '@/app/types';
+import { Colors, Message } from '@/app/types';
+import { MessageIcon, SendIcon } from './Icons';
 import { gradients } from '@/app/utils/theme';
 
 interface MessagesProps {
@@ -8,66 +9,192 @@ interface MessagesProps {
 
 export default function Messages({ c }: MessagesProps) {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
-  const [message, setMessage] = useState('');
-  const [hoverId, setHoverId] = useState<string | null>(null);
+  const [messageInput, setMessageInput] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState([
+    { id: '1', name: 'Sarah', lastMessage: 'Hey, how are you?', timestamp: Date.now() - 3600000 },
+    { id: '2', name: 'Emma', lastMessage: 'Love your posts!', timestamp: Date.now() - 7200000 },
+    { id: '3', name: 'Lisa', lastMessage: 'See you soon!', timestamp: Date.now() - 86400000 },
+  ]);
 
-  const conversations = [
-    { id: '1', name: 'Emma', avatar: '👩', lastMessage: 'Hey! How are you?' },
-    { id: '2', name: 'Sophia', avatar: '👩', lastMessage: 'Let\'s grab coffee?' },
-    { id: '3', name: 'Olivia', avatar: '👩', lastMessage: 'Love your post!' },
-  ];
+  const handleSendMessage = () => {
+    if (!messageInput.trim() || !selectedChat) return;
+    
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      senderId: 'me',
+      receiverId: selectedChat,
+      text: messageInput,
+      timestamp: Date.now(),
+      read: false,
+    };
+    
+    setMessages([...messages, newMessage]);
+    setMessageInput('');
+  };
 
   return (
-    <div style={{ maxWidth: '468px', margin: '0 auto', backgroundColor: c.bg, color: c.text, minHeight: '100vh', borderLeft: `1px solid ${c.border}`, borderRight: `1px solid ${c.border}`, display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <div style={{ padding: '16px', borderBottom: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700' }}>Messages</h2>
-        <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px' }}>✏️</button>
-      </div>
+    <div style={{ 
+      maxWidth: '468px', 
+      margin: '0 auto', 
+      backgroundColor: c.bg, 
+      color: c.text, 
+      minHeight: '100vh',
+      borderLeft: `1px solid ${c.border}`,
+      borderRight: `1px solid ${c.border}`,
+      paddingBottom: '80px',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {selectedChat ? (
+        <>
+          {/* Chat Header */}
+          <div style={{ 
+            padding: '16px',
+            borderBottom: `1px solid ${c.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            position: 'sticky',
+            top: 0,
+            backgroundColor: c.bg,
+            zIndex: 100
+          }}>
+            <button
+              onClick={() => setSelectedChat(null)}
+              style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', fontSize: '16px', padding: 0 }}
+            >
+              Back
+            </button>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: gradients.pink }} />
+            <div>
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: '600' }}>
+                {conversations.find(c => c.id === selectedChat)?.name}
+              </p>
+            </div>
+          </div>
 
-      {!selectedChat ? (
-        /* Conversations List */
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {conversations.map((conv) => (
-            <div 
-              key={conv.id} 
-              onClick={() => setSelectedChat(conv.id)}
-              onMouseEnter={() => setHoverId(conv.id)}
-              onMouseLeave={() => setHoverId(null)}
-              style={{ 
-                padding: '12px 16px', 
-                borderBottom: `1px solid ${c.border}`, 
-                display: 'flex', 
-                gap: '12px', 
+          {/* Messages */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {messages.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#999', fontSize: '12px', margin: 'auto' }}>
+                No messages yet
+              </div>
+            ) : (
+              messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: msg.senderId === 'me' ? 'flex-end' : 'flex-start',
+                  }}
+                >
+                  <div
+                    style={{
+                      maxWidth: '80%',
+                      padding: '12px 16px',
+                      backgroundColor: msg.senderId === 'me' ? '#0095f6' : c.input,
+                      color: msg.senderId === 'me' ? '#fff' : c.text,
+                      borderRadius: '18px',
+                      fontSize: '13px',
+                      lineHeight: 1.4,
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Input */}
+          <div style={{ 
+            padding: '12px 16px', 
+            borderTop: `1px solid ${c.border}`,
+            display: 'flex',
+            gap: '8px'
+          }}>
+            <input
+              type="text"
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="Message"
+              style={{
+                flex: 1,
+                padding: '10px 16px',
+                backgroundColor: c.input,
+                color: c.text,
+                border: `1px solid ${c.border}`,
+                borderRadius: '20px',
+                fontSize: '13px',
+                outline: 'none',
+              }}
+            />
+            <button
+              onClick={handleSendMessage}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#0095f6',
                 cursor: 'pointer',
-                backgroundColor: hoverId === conv.id ? c.button : 'transparent',
-                transition: 'background-color 0.2s'
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: gradients.pink, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>{conv.avatar}</div>
-              <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontWeight: '600', fontSize: '13px' }}>{conv.name}</p>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#999' }}>{conv.lastMessage}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+              <SendIcon size={20} />
+            </button>
+          </div>
+        </>
       ) : (
-        /* Chat View */
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '12px 16px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button onClick={() => setSelectedChat(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}>←</button>
-            <p style={{ margin: 0, fontWeight: '600' }}>Emma</p>
+        <>
+          {/* Header */}
+          <div style={{ 
+            padding: '16px',
+            borderBottom: `1px solid ${c.border}`,
+            position: 'sticky',
+            top: 0,
+            backgroundColor: c.bg,
+            zIndex: 100
+          }}>
+            <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>Messages</h1>
           </div>
-          <div style={{ flex: 1, padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ backgroundColor: c.button, padding: '12px', borderRadius: '12px', maxWidth: '70%', wordBreak: 'break-word' }}>Hey! How are you?</div>
-            <div style={{ backgroundColor: c.accent, color: '#fff', padding: '12px', borderRadius: '12px', maxWidth: '70%', marginLeft: 'auto', wordBreak: 'break-word' }}>I'm doing great! 💕</div>
+
+          {/* Conversations */}
+          <div>
+            {conversations.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => setSelectedChat(conv.id)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  backgroundColor: 'transparent',
+                  color: c.text,
+                  border: 'none',
+                  borderBottom: `1px solid ${c.border}`,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  gap: '12px',
+                  alignItems: 'center',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: gradients.pink, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: '600' }}>{conv.name}</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {conv.lastMessage}
+                  </p>
+                </div>
+                <p style={{ margin: 0, fontSize: '11px', color: '#999', flexShrink: 0 }}>2h</p>
+              </button>
+            ))}
           </div>
-          <div style={{ padding: '16px', borderTop: `1px solid ${c.border}`, display: 'flex', gap: '8px' }}>
-            <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Message..." style={{ flex: 1, padding: '10px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '20px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
-            <button style={{ background: gradients.pink, color: '#fff', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', fontWeight: '600' }}>→</button>
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

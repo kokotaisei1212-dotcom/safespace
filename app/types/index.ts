@@ -1,85 +1,6 @@
-export type TabType = 'home' | 'search' | 'profile' | 'settings' | 'messages' | 'explore' | 'creator_dashboard' | 'earnings';
+export type TabType = 'home' | 'search' | 'messages' | 'profile' | 'settings' | 'explore' | 'creator';
 export type Theme = 'dark' | 'light';
 export type Lang = 'en' | 'ja';
-
-export interface Creator {
-  id: string;
-  userId: string;
-  bio: string;
-  totalEarnings: number;
-  monthlyEarnings: number;
-  followers: number;
-  posts: number;
-  engagementRate: number;
-  bankAccount?: {
-    accountNumber: string;
-    routingNumber: string;
-  };
-  subscriptionPrice?: number;
-  stripeConnectId?: string;
-}
-
-export interface Transaction {
-  id: string;
-  creatorId: string;
-  type: 'tip' | 'subscription' | 'live' | 'payout';
-  amount: number;
-  fee: number;
-  net: number;
-  timestamp: number;
-  status: 'pending' | 'completed' | 'failed';
-}
-
-export interface Subscription {
-  id: string;
-  creatorId: string;
-  subscriberId: string;
-  price: number;
-  status: 'active' | 'cancelled';
-  startDate: number;
-  nextBillingDate: number;
-}
-
-export interface Message {
-  id: string;
-  senderId: string;
-  receiverId: string;
-  text: string;
-  timestamp: number;
-  read: boolean;
-}
-
-export interface Story {
-  id: string;
-  userId: string;
-  userName: string;
-  avatar: string;
-  media: string;
-  timestamp: number;
-  viewed: boolean;
-}
-
-export interface Reel {
-  id: string;
-  userId: string;
-  userName: string;
-  avatar: string;
-  video: string;
-  duration: number;
-  caption: string;
-  timestamp: number;
-  likes: number;
-  comments: Comment[];
-}
-
-export interface Notification {
-  id: string;
-  userId: string;
-  type: 'like' | 'comment' | 'follow' | 'message';
-  fromUser: string;
-  timestamp: number;
-  read: boolean;
-}
 
 export interface Post {
   id: string;
@@ -93,8 +14,8 @@ export interface Post {
   comments: Comment[];
   shares: number;
   hashtags: string[];
-  tipsReceived?: number;
-  exclusive?: boolean;
+  commentsDisabled?: boolean;
+  likesDisabled?: boolean;
 }
 
 export interface Comment {
@@ -102,6 +23,18 @@ export interface Comment {
   userName: string;
   text: string;
   timestamp: number;
+  likes?: number;
+}
+
+export interface Story {
+  id: string;
+  userId: string;
+  userName: string;
+  avatar: string;
+  image: string;
+  timestamp: number;
+  expiresAt: number;
+  viewed: boolean;
 }
 
 export interface UserProfile {
@@ -112,12 +45,57 @@ export interface UserProfile {
   bio: string;
   website: string;
   avatar: string;
-  privateAccount: boolean;
   verified: boolean;
+  isCreator: boolean;
+  privateAccount: boolean;
   followers: string[];
   following: string[];
   blocked: string[];
-  isCreator?: boolean;
+  totalPosts: number;
+  monthlyEarnings: number;
+  totalEarnings: number;
+}
+
+export interface Message {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  text: string;
+  timestamp: number;
+  read: boolean;
+  readAt?: number;
+}
+
+export interface Conversation {
+  id: string;
+  participants: string[];
+  lastMessage: string;
+  lastMessageTime: number;
+  unreadCount: number;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'like' | 'comment' | 'follow' | 'message' | 'tip';
+  fromUserId: string;
+  fromUserName: string;
+  postId?: string;
+  timestamp: number;
+  read: boolean;
+}
+
+export interface Transaction {
+  id: string;
+  senderId: string;
+  creatorId: string;
+  type: 'tip' | 'subscription' | 'live';
+  amount: number;
+  fee: number;
+  net: number;
+  timestamp: number;
+  status: 'pending' | 'completed' | 'failed';
+  stripePaymentId?: string;
 }
 
 export interface Colors {
@@ -126,7 +104,5 @@ export interface Colors {
   border: string;
   input: string;
   button: string;
-  primary: string;
-  secondary: string;
   accent: string;
 }

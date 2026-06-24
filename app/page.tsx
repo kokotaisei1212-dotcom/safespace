@@ -83,7 +83,6 @@ export default function App() {
           following={following}
           blocked={blocked}
           c={c}
-          i18n={t}
           onFollow={(id) => setFollowing(following.includes(id) ? following.filter(x => x !== id) : [...following, id])}
           onViewUser={(u) => { setViewingUser(u); setTab('profile'); }}
         />
@@ -104,7 +103,6 @@ export default function App() {
           posts={posts}
           following={following}
           c={c}
-          i18n={t}
           isViewingOther={!!viewingUser}
           onFollow={(id) => setFollowing(following.includes(id) ? following.filter(x => x !== id) : [...following, id])}
         />
@@ -115,7 +113,6 @@ export default function App() {
           theme={theme}
           lang={lang}
           c={c}
-          i18n={t}
           onThemeChange={setTheme}
           onLangChange={setLang}
         />
