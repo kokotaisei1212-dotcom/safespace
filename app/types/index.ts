@@ -1,26 +1,52 @@
-export type TabType = 'home' | 'search' | 'profile' | 'settings' | 'messages' | 'stories' | 'reels' | 'explore';
+export type TabType = 'home' | 'search' | 'profile' | 'settings' | 'messages' | 'explore' | 'creator_dashboard' | 'earnings';
 export type Theme = 'dark' | 'light';
 export type Lang = 'en' | 'ja';
 
-export interface Post {
+export interface Creator {
   id: string;
   userId: string;
-  userName: string;
-  avatar: string;
-  content: string;
-  image?: string;
-  timestamp: number;
-  likes: number;
-  comments: Comment[];
-  shares: number;
-  hashtags: string[];
+  bio: string;
+  totalEarnings: number;
+  monthlyEarnings: number;
+  followers: number;
+  posts: number;
+  engagementRate: number;
+  bankAccount?: {
+    accountNumber: string;
+    routingNumber: string;
+  };
+  subscriptionPrice?: number;
+  stripeConnectId?: string;
 }
 
-export interface Comment {
-  userId: string;
-  userName: string;
+export interface Transaction {
+  id: string;
+  creatorId: string;
+  type: 'tip' | 'subscription' | 'live' | 'payout';
+  amount: number;
+  fee: number;
+  net: number;
+  timestamp: number;
+  status: 'pending' | 'completed' | 'failed';
+}
+
+export interface Subscription {
+  id: string;
+  creatorId: string;
+  subscriberId: string;
+  price: number;
+  status: 'active' | 'cancelled';
+  startDate: number;
+  nextBillingDate: number;
+}
+
+export interface Message {
+  id: string;
+  senderId: string;
+  receiverId: string;
   text: string;
   timestamp: number;
+  read: boolean;
 }
 
 export interface Story {
@@ -46,15 +72,6 @@ export interface Reel {
   comments: Comment[];
 }
 
-export interface Message {
-  id: string;
-  senderId: string;
-  receiverId: string;
-  text: string;
-  timestamp: number;
-  read: boolean;
-}
-
 export interface Notification {
   id: string;
   userId: string;
@@ -62,6 +79,29 @@ export interface Notification {
   fromUser: string;
   timestamp: number;
   read: boolean;
+}
+
+export interface Post {
+  id: string;
+  userId: string;
+  userName: string;
+  avatar: string;
+  content: string;
+  image?: string;
+  timestamp: number;
+  likes: number;
+  comments: Comment[];
+  shares: number;
+  hashtags: string[];
+  tipsReceived?: number;
+  exclusive?: boolean;
+}
+
+export interface Comment {
+  userId: string;
+  userName: string;
+  text: string;
+  timestamp: number;
 }
 
 export interface UserProfile {
@@ -77,6 +117,7 @@ export interface UserProfile {
   followers: string[];
   following: string[];
   blocked: string[];
+  isCreator?: boolean;
 }
 
 export interface Colors {
