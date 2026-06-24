@@ -12,38 +12,37 @@ export default function JoinPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
   const router = useRouter();
+
+  // テスト用メール（確認をスキップ）
+  const testEmail = 'test@safespace.jp';
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setMessage('');
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // ユーザー情報を Realtime Database に保存
+      // ユーザー情報を保存
       await set(ref(database, `users/${user.uid}`), {
         id: user.uid,
         email,
         name,
         createdAt: new Date().toISOString(),
-        emailVerified: false,
-        identityVerified: false,
+        emailVerified: email === testEmail ? true : false,
+        identityVerified: email === testEmail ? true : false,
       });
 
-      // メール確認メールを送信
-      await sendEmailVerification(user);
+      // テスト用メール以外はメール確認メールを送信
+      if (email !== testEmail) {
+        await sendEmailVerification(user);
+      }
 
-      setMessage('確認メールを送信しました。メールをご確認ください。本人確認ページへリダイレクトします。');
-      
-      // 3秒後に本人確認ページへリダイレクト
-      setTimeout(() => {
-        router.push('/verify');
-      }, 3000);
+      // すぐに Feed へリダイレクト
+      router.push('/feed');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -60,12 +59,6 @@ export default function JoinPage() {
         {error && (
           <div style={{ color: '#d32f2f', marginBottom: '15px', fontSize: '14px' }}>
             {error}
-          </div>
-        )}
-
-        {message && (
-          <div style={{ color: '#4caf50', marginBottom: '15px', fontSize: '14px' }}>
-            {message}
           </div>
         )}
 
@@ -102,7 +95,7 @@ export default function JoinPage() {
 
           <input
             type="password"
-            placeholder="パスワード"
+            placeholder="パスワード（6文字以上）"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
