@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { getAuth, signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { database } from '@/lib/firebase';
-import { ref, onValue, update, get } from 'firebase/database';
+import { ref, onValue, update, get, push, set } from 'firebase/database';
 
 interface Post {
   id: string;
@@ -22,6 +22,14 @@ interface UserProfile {
   identityVerified: boolean;
 }
 
+interface Message {
+  id: string;
+  fromUserId: string;
+  fromUserName: string;
+  content: string;
+  createdAt: string;
+}
+
 export default function App() {
   const [tab, setTab] = useState('home');
   const [content, setContent] = useState('');
@@ -37,7 +45,8 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile>({ name: '', bio: '', identityVerified: false });
   const [editing, setEditing] = useState(false);
   const [stats, setStats] = useState({ posts: 0, followers: 0, following: 0 });
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState('');
   const router = useRouter();
   const auth = getAuth();
@@ -49,7 +58,6 @@ export default function App() {
       return;
     }
 
-    // プロフィール取得
     const userRef = ref(database, `users/${user.uid}`);
     get(userRef).then((snapshot) => {
       if (snapshot.exists()) {
@@ -68,7 +76,6 @@ export default function App() {
       }
     });
 
-    // 投稿リアルタイム
     const postsRef = ref(database, 'posts');
     const unsubscribe = onValue(postsRef, (snapshot) => {
       const data = snapshot.val();
@@ -81,7 +88,6 @@ export default function App() {
       }
     });
 
-    // ユーザー一覧
     const usersRef = ref(database, 'users');
     const unsubscribe2 = onValue(usersRef, (snapshot) => {
       const data = snapshot.val();
@@ -95,6 +101,26 @@ export default function App() {
       unsubscribe2();
     };
   }, [user, router]);
+
+  // メッセージをリアルタイムで取得
+  useEffect(() => {
+    if (!selectedUserId || !user) return;
+
+    const conversationId = [user.uid, selectedUserId].sort().join('_');
+    const messagesRef = ref(database, `messages/${conversationId}`);
+    const unsubscribe = onValue(messagesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const messageList = Object.entries(data).map(([key, value]: any) => ({
+          id: key,
+          ...value,
+        }));
+        setMessages(messageList.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+      }
+    });
+
+    return () => unsubscribe();
+  }, [selectedUserId, user]);
 
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,6 +223,28 @@ export default function App() {
     }
   };
 
+  const handleSendMessage = async () => {
+    if (!messageText.trim() || !user || !selectedUserId) return;
+
+    try {
+      const conversationId = [user.uid, selectedUserId].sort().join('_');
+      const messagesRef = ref(database, `messages/${conversationId}`);
+      const newMessageRef = push(messagesRef);
+
+      await set(newMessageRef, {
+        id: newMessageRef.key,
+        fromUserId: user.uid,
+        fromUserName: user.email?.split('@')[0] || 'User',
+        content: messageText,
+        createdAt: new Date().toISOString(),
+      });
+
+      setMessageText('');
+    } catch (err) {
+      console.error('メッセージ送信失敗:', err);
+    }
+  };
+
   const handleSaveProfile = async () => {
     if (!user) return;
     setLoading(true);
@@ -219,12 +267,6 @@ export default function App() {
     await signOut(auth);
     router.push('/join');
   };
-
-  const conversations = [
-    { id: '1', name: 'ユーザーA', lastMessage: 'おはよう！', time: '5分前' },
-    { id: '2', name: 'ユーザーB', lastMessage: 'ありがとう', time: '1時間前' },
-    { id: '3', name: 'ユーザーC', lastMessage: 'また明日！', time: '3時間前' },
-  ];
 
   // ホームタブ
   if (tab === 'home') {
@@ -275,10 +317,10 @@ export default function App() {
                 <p style={{ fontSize: '15px', color: '#fff', margin: '12px 0', lineHeight: '1.5', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{post.content}</p>
 
                 <div style={{ display: 'flex', gap: '20px', marginTop: '12px', color: '#999', paddingTop: '12px', borderTop: '1px solid #262626' }}>
-                  <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: likedPosts.has(post.id) ? '#f91880' : '#999', padding: 0 }}>
+                  <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: likedPosts.has(post.id) ? '#f91880' : '#fff', padding: 0 }}>
                     {likedPosts.has(post.id) ? '❤️' : '🤍'} {post.likes}
                   </button>
-                  <button onClick={() => setExpandedComments(new Set(expandedComments).add(post.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: '#999', padding: 0 }}>
+                  <button onClick={() => setExpandedComments(new Set(expandedComments).add(post.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: '#fff', padding: 0 }}>
                     💬 {Object.keys(post.comments || {}).length}
                   </button>
                 </div>
@@ -303,8 +345,10 @@ export default function App() {
         </div>
 
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #262626', backgroundColor: '#000', display: 'flex', justifyContent: 'space-around', padding: '12px 0' }}>
-          {[{ key: 'home', icon: '🏠' }, { key: 'search', icon: '🔍' }, { key: 'messages', icon: '💬' }, { key: 'profile', icon: '👤' }].map(({ key, icon }) => (
-            <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', fontSize: '20px', opacity: tab === key ? 1 : 0.6 }}>{icon}</button>
+          {[{ key: 'home', icon: '🏠', label: 'ホーム' }, { key: 'search', icon: '🔍', label: '検索' }, { key: 'messages', icon: '💬', label: 'DM' }, { key: 'profile', icon: '👤', label: 'プロフ' }].map(({ key, icon, label }) => (
+            <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', fontSize: '12px', color: tab === key ? '#f09433' : '#999', opacity: tab === key ? 1 : 0.6 }}>
+              <div style={{ fontSize: '20px' }}>{icon}</div>{label}
+            </button>
           ))}
         </div>
       </div>
@@ -324,7 +368,7 @@ export default function App() {
           {filteredUsers.map((u: any) => (
             <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #262626' }}>
               <div>
-                <p style={{ fontSize: '15px', fontWeight: '600', margin: 0 }}>{u.name}</p>
+                <p style={{ fontSize: '15px', fontWeight: '600', margin: 0 }}>{u.name || u.email?.split('@')[0]}</p>
                 <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>{u.email}</p>
               </div>
               <button onClick={() => handleFollow(u.id)} style={{ padding: '6px 16px', background: following.has(u.id) ? 'transparent' : 'linear-gradient(45deg, #f09433, #e6683c)', color: following.has(u.id) ? '#999' : '#fff', border: following.has(u.id) ? '1px solid #262626' : 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}>
@@ -344,38 +388,107 @@ export default function App() {
 
   // メッセージタブ
   if (tab === 'messages') {
+    const userConversations = Object.entries(allUsers)
+      .filter(([id]: any) => id !== user?.uid)
+      .map(([id, u]: any) => ({ id, ...u }));
+
     return (
-      <div style={{ display: 'flex', height: '100vh', backgroundColor: '#000', color: '#fff' }}>
-        <div style={{ width: '320px', borderRight: '1px solid #262626', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '16px', borderBottom: '1px solid #262626' }}>
+      <div style={{ display: 'flex', height: '100vh', backgroundColor: '#000', color: '#fff', paddingBottom: '0' }}>
+        <div style={{ width: '280px', borderRight: '1px solid #262626', overflowY: 'auto', display: 'flex', flexDirection: 'column', backgroundColor: '#000' }}>
+          <div style={{ padding: '16px', borderBottom: '1px solid #262626', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>メッセージ</h2>
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {conversations.map((conv) => (
-              <div key={conv.id} onClick={() => setSelectedUser(conv.id)} style={{ padding: '12px 16px', borderBottom: '1px solid #262626', cursor: 'pointer', backgroundColor: selectedUser === conv.id ? '#262626' : '#000' }}>
-                <p style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 4px 0' }}>{conv.name}</p>
-                <p style={{ fontSize: '13px', color: '#999', margin: '0 0 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conv.lastMessage}</p>
-                <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>{conv.time}</p>
+            {userConversations.map((u: any) => (
+              <div
+                key={u.id}
+                onClick={() => setSelectedUserId(u.id)}
+                style={{
+                  padding: '12px 16px',
+                  borderBottom: '1px solid #262626',
+                  cursor: 'pointer',
+                  backgroundColor: selectedUserId === u.id ? '#262626' : '#000',
+                  transition: 'background-color 0.2s',
+                }}>
+                <p style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 4px 0' }}>{u.name || u.email?.split('@')[0]}</p>
+                <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>{u.email}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {selectedUser ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {selectedUserId ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
             <div style={{ borderBottom: '1px solid #262626', padding: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>{conversations.find(c => c.id === selectedUser)?.name}</h3>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
+                {allUsers[selectedUserId]?.name || allUsers[selectedUserId]?.email?.split('@')[0]}
+              </h3>
             </div>
-            <div style={{ flex: 1, padding: '16px', textAlign: 'center', color: '#999' }}>メッセージがありません</div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {messages.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#999' }}>メッセージを送信して会話を開始</p>
+              ) : (
+                messages.map((msg) => (
+                  <div key={msg.id} style={{ textAlign: msg.fromUserId === user?.uid ? 'right' : 'left' }}>
+                    <div style={{
+                      display: 'inline-block',
+                      maxWidth: '60%',
+                      padding: '10px 14px',
+                      borderRadius: '18px',
+                      backgroundColor: msg.fromUserId === user?.uid ? '#f09433' : '#262626',
+                      color: msg.fromUserId === user?.uid ? '#000' : '#fff',
+                      fontSize: '14px',
+                      wordBreak: 'break-word',
+                    }}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
             <div style={{ padding: '12px 16px', borderTop: '1px solid #262626', display: 'flex', gap: '8px' }}>
-              <input type="text" placeholder="メッセージを入力..." value={messageText} onChange={(e) => setMessageText(e.target.value)} style={{ flex: 1, padding: '10px 14px', border: '1px solid #262626', borderRadius: '20px', fontSize: '14px', color: '#fff', backgroundColor: '#262626' }} />
-              <button style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #f09433, #e6683c)', color: '#fff', border: 'none', borderRadius: '20px', cursor: 'pointer', fontWeight: '600' }}>送信</button>
+              <input
+                type="text"
+                placeholder="メッセージを入力..."
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  border: '1px solid #262626',
+                  borderRadius: '20px',
+                  fontSize: '14px',
+                  color: '#fff',
+                  backgroundColor: '#262626',
+                }}
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!messageText.trim()}
+                style={{
+                  padding: '10px 20px',
+                  background: 'linear-gradient(45deg, #f09433, #e6683c)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '20px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  opacity: !messageText.trim() ? 0.5 : 1,
+                }}>
+                送信
+              </button>
             </div>
           </div>
         ) : (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>メッセージを選択してください</div>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
+            メッセージを選択してください
+          </div>
         )}
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #262626', backgroundColor: '#000', display: 'flex', justifyContent: 'space-around', padding: '12px 0', width: '100%' }}>
+
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #262626', backgroundColor: '#000', display: 'flex', justifyContent: 'space-around', padding: '12px 0' }}>
           {[{ key: 'home', icon: '🏠' }, { key: 'search', icon: '🔍' }, { key: 'messages', icon: '💬' }, { key: 'profile', icon: '👤' }].map(({ key, icon }) => (
             <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', fontSize: '20px', opacity: tab === key ? 1 : 0.6 }}>{icon}</button>
           ))}
@@ -398,9 +511,14 @@ export default function App() {
         <div style={{ padding: '0 16px', marginTop: '-40px', position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
             <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743)', border: '3px solid #000' }} />
-            <button onClick={() => setEditing(!editing)} style={{ padding: '10px 20px', backgroundColor: '#262626', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
-              {editing ? 'キャンセル' : '編集'}
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setEditing(!editing)} style={{ padding: '10px 20px', backgroundColor: '#262626', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
+                {editing ? 'キャンセル' : '編集'}
+              </button>
+              <button onClick={() => router.push('/verify')} style={{ padding: '10px 20px', backgroundColor: '#262626', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
+                確認
+              </button>
+            </div>
           </div>
 
           <p style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
