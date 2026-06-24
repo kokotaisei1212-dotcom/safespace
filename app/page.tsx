@@ -12,6 +12,8 @@ import Home from '@/app/components/Home';
 import Search from '@/app/components/Search';
 import Profile from '@/app/components/Profile';
 import Settings from '@/app/components/Settings';
+import Messages from '@/app/components/Messages';
+import Explore from '@/app/components/Explore';
 import Nav from '@/app/components/Nav';
 
 export default function App() {
@@ -55,10 +57,10 @@ export default function App() {
           posts={posts}
           profile={profile}
           c={c}
-          i18n={t}
           onCreatePost={(content) => createPost(user, profile, content)}
           onDeletePost={deletePost}
           onLike={(id) => setLikedPosts(likedPosts.includes(id) ? likedPosts.filter(x => x !== id) : [...likedPosts, id])}
+          onComment={(postId, text) => console.log('Comment:', postId, text)}
           likedPosts={likedPosts}
         />
       )}
@@ -73,6 +75,14 @@ export default function App() {
           onFollow={(id) => setFollowing(following.includes(id) ? following.filter(x => x !== id) : [...following, id])}
           onViewUser={(u) => { setViewingUser(u); setTab('profile'); }}
         />
+      )}
+
+      {tab === 'messages' && (
+        <Messages c={c} />
+      )}
+
+      {tab === 'explore' && (
+        <Explore c={c} />
       )}
 
       {tab === 'profile' && (
