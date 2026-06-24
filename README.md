@@ -1,36 +1,120 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SafeSpace - Women-Only Creator Platform
 
-## Getting Started
+Instagram完全パクのレズビアン・女性向けクリエイタープラットフォーム
 
-First, run the development server:
+## アクセスリンク
+
+### ユーザー用
+- **本番**: https://safespace-chi.vercel.app
+- テストアカウント: test@safespace.jp / Password123
+
+### 運営者用（大成さん）
+- **管理画面**: https://safespace-chi.vercel.app/admin
+- **Email**: admin@safespace.jp
+
+## 機能
+
+- Instagram完全パク UI/UX
+- 女性限定（性別認証）
+- 本人確認（パスポート・免許・国民ID）
+- チップ機能（Stripe統合）
+- Creator マネタイズ
+- 自動手数料計算・出金管理
+- DM・Stories・Explore
+- プロフィール・Settings
+- 多言語対応（日本語・英語）
+
+## 技術スタック
+
+- Next.js 16.2.9 (Turbopack)
+- Firebase Auth + Realtime Database
+- Stripe
+- TypeScript
+- インラインスタイル（Tailwind不使用）
+
+## セットアップ
 
 ```bash
+cd safespace
+npm install
+npm run build
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ビジネスモデル
+cd ~/safespace
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# admin ページを作成
+cat > app/admin/page.tsx << 'EOF'
+'use client';
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+import { useEffect, useState } from 'react';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { Theme, Colors } from '@/app/types';
+import { getColors } from '@/app/utils/theme';
+import AdminDashboard from '@/app/components/AdminDashboard';
 
-## Learn More
+const ADMIN_EMAIL = 'admin@safespace.jp';
 
-To learn more about Next.js, take a look at the following resources:
+export default function AdminPage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [theme, setTheme] = useState<Theme>('dark');
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+  const c = getColors(theme);
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser && currentUser.email === ADMIN_EMAIL) {
+        setUser(currentUser);
+        setIsAdmin(true);
+      }
+      setIsLoading(false);
+    });
 
-## Deploy on Vercel
+    return () => unsubscribe();
+  }, []);
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+  if (isLoading) {
+    return (
+      <div style={{ 
+        backgroundColor: c.bg, 
+        color: c.text, 
+        height: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        Loading...
+      </div>
+    );
+  }
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+  if (!isAdmin) {
+    return (
+      <div style={{ 
+        backgroundColor: c.bg, 
+        color: c.text, 
+        height: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        textAlign: 'center',
+        padding: '24px'
+      }}>
+        <div>
+          <p style={{ margin: 0, fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>Access Denied</p>
+          <p style={{ margin: 0, fontSize: '13px', color: '#999' }}>Admin only</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ backgroundColor: c.bg, color: c.text, minHeight: '100vh' }}>
+      <AdminDashboard c={c} transactions={[]} users={[]} />
+    </div>
+  );
+}
