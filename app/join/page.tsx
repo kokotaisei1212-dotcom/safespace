@@ -32,16 +32,17 @@ export default function JoinPage() {
         name,
         createdAt: new Date().toISOString(),
         emailVerified: false,
+        identityVerified: false,
       });
 
       // メール確認メールを送信
       await sendEmailVerification(user);
 
-      setMessage('確認メールを送信しました。メールをご確認ください。');
+      setMessage('確認メールを送信しました。メールをご確認ください。本人確認ページへリダイレクトします。');
       
-      // 3秒後に Feed へリダイレクト
+      // 3秒後に本人確認ページへリダイレクト
       setTimeout(() => {
-        router.push('/feed');
+        router.push('/verify');
       }, 3000);
     } catch (err: any) {
       setError(err.message);
