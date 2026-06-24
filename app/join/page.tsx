@@ -41,8 +41,8 @@ export default function JoinPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
       <div style={{ textAlign: 'center', maxWidth: '400px', width: '100%', padding: '20px' }}>
-        <h1 style={{ fontSize: '24px', marginBottom: '30px', color: '#333' }}>アカウントを作成する</h1>
-        <p style={{ fontSize: '14px', color: '#999', marginBottom: '20px' }}>女性限定</p>
+        <h1 style={{ fontSize: '24px', marginBottom: '30px', color: '#000' }}>アカウントを作成する</h1>
+        <p style={{ fontSize: '14px', color: '#333', marginBottom: '20px' }}>女性限定</p>
 
         {error && (
           <div style={{ color: '#d32f2f', marginBottom: '15px', fontSize: '14px' }}>
@@ -62,6 +62,7 @@ export default function JoinPage() {
               border: '1px solid #ddd',
               borderRadius: '8px',
               fontSize: '14px',
+              color: '#000',
             }}
           />
 
@@ -76,6 +77,7 @@ export default function JoinPage() {
               border: '1px solid #ddd',
               borderRadius: '8px',
               fontSize: '14px',
+              color: '#000',
             }}
           />
 
@@ -90,6 +92,7 @@ export default function JoinPage() {
               border: '1px solid #ddd',
               borderRadius: '8px',
               fontSize: '14px',
+              color: '#000',
             }}
           />
 
@@ -111,7 +114,7 @@ export default function JoinPage() {
           </button>
         </form>
 
-        <p style={{ fontSize: '12px', color: '#999', marginTop: '20px' }}>
+        <p style={{ fontSize: '12px', color: '#333', marginTop: '20px' }}>
           ご登録いただくことで、あなたが女性であることを確認したことになります。
         </p>
       </div>
