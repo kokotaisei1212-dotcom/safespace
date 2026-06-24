@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, User } from 'firebase/auth';
 import { auth, database } from '@/lib/firebase';
-import { ref, get, push } from 'firebase/database';
+import { ref, get, push, set } from 'firebase/database';
 
 interface Post {
   id: string;
@@ -15,7 +15,7 @@ interface Post {
   likes: number;
 }
 
-export default function Home() {
+export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [tab, setTab] = useState('home');
   const [posts, setPosts] = useState<Post[]>([]);
@@ -24,6 +24,10 @@ export default function Home() {
   const [following, setFollowing] = useState(new Set<string>());
   const [searchQuery, setSearchQuery] = useState('');
   const [likedPosts, setLikedPosts] = useState(new Set<string>());
+  const [authMode, setAuthMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -31,12 +35,11 @@ export default function Home() {
       if (currentUser) {
         setUser(currentUser);
         loadData(currentUser.uid);
-      } else {
-        router.push('/join');
+        setTab('home');
       }
     });
     return () => unsubscribe();
-  }, [router]);
+  }, []);
 
   const loadData = async (uid: string) => {
     try {
@@ -59,8 +62,36 @@ export default function Home() {
         setUsers(usersData);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error:', error);
     }
+  };
+
+  const handleLogin = async () => {
+    if (!email || !password) return;
+    setLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      alert('Login failed');
+    }
+    setLoading(false);
+  };
+
+  const handleSignup = async () => {
+    if (!email || !password) return;
+    setLoading(true);
+    try {
+      const userCred = await createUserWithEmailAndPassword(auth, email, password);
+      await set(ref(database, `users/${userCred.user.uid}`), {
+        id: userCred.user.uid,
+        email,
+        name: email.split('@')[0],
+        createdAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      alert('Signup failed');
+    }
+    setLoading(false);
   };
 
   const handleCreatePost = async () => {
@@ -101,8 +132,27 @@ export default function Home() {
     setLikedPosts(newLiked);
   };
 
+  // NOT LOGGED IN
   if (!user) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#fff' }}>Loading...</div>;
+    return (
+      <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: '#fff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+        <div style={{ width: '100%', maxWidth: '400px' }}>
+          <h1 style={{ fontSize: '32px', fontWeight: '700', textAlign: 'center', marginBottom: '32px', color: '#000' }}>SafeSpace</h1>
+          
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" style={{ width: '100%', padding: '12px', marginBottom: '12px', border: '1px solid #e5e5e5', borderRadius: '8px', fontSize: '14px', backgroundColor: '#f9f9f9', color: '#000', outline: 'none' }} />
+          
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" style={{ width: '100%', padding: '12px', marginBottom: '12px', border: '1px solid #e5e5e5', borderRadius: '8px', fontSize: '14px', backgroundColor: '#f9f9f9', color: '#000', outline: 'none' }} />
+          
+          <button onClick={authMode === 'login' ? handleLogin : handleSignup} disabled={loading} style={{ width: '100%', padding: '12px', backgroundColor: '#e91e63', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', marginBottom: '12px' }}>
+            {loading ? 'Loading...' : (authMode === 'login' ? 'Login' : 'Sign Up')}
+          </button>
+          
+          <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} style={{ width: '100%', padding: '12px', backgroundColor: '#f0f0f0', color: '#000', border: 'none', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}>
+            {authMode === 'login' ? 'Create Account' : 'Back to Login'}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // HOME TAB
@@ -132,7 +182,7 @@ export default function Home() {
         </div>
 
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #e5e5e5', backgroundColor: '#fff', display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
-          {[{ key: 'home', label: 'Home' }, { key: 'search', label: 'Explore' }, { key: 'messages', label: 'Messages' }, { key: 'profile', label: 'Profile' }].map(({ key, label }) => (
+          {[{ key: 'home', label: 'Home' }, { key: 'search', label: 'Explore' }, { key: 'profile', label: 'Profile' }].map(({ key, label }) => (
             <button key={key} onClick={() => setTab(key)} style={{ flex: 1, padding: '12px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: tab === key ? '#000' : '#999', fontWeight: tab === key ? '600' : '400', borderTop: tab === key ? '3px solid #000' : 'none' }}>
               {label}
             </button>
@@ -161,26 +211,7 @@ export default function Home() {
           ))}
         </div>
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #e5e5e5', backgroundColor: '#fff', display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
-          {[{ key: 'home', label: 'Home' }, { key: 'search', label: 'Explore' }, { key: 'messages', label: 'Messages' }, { key: 'profile', label: 'Profile' }].map(({ key, label }) => (
-            <button key={key} onClick={() => setTab(key)} style={{ flex: 1, padding: '12px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: tab === key ? '#000' : '#999', fontWeight: tab === key ? '600' : '400', borderTop: tab === key ? '3px solid #000' : 'none' }}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // MESSAGES TAB
-  if (tab === 'messages') {
-    return (
-      <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: '#fff', minHeight: '100vh', paddingBottom: '60px' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid #e5e5e5' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#000' }}>Messages</h2>
-        </div>
-        <div style={{ padding: '16px', textAlign: 'center', color: '#999' }}>No messages yet</div>
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #e5e5e5', backgroundColor: '#fff', display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
-          {[{ key: 'home', label: 'Home' }, { key: 'search', label: 'Explore' }, { key: 'messages', label: 'Messages' }, { key: 'profile', label: 'Profile' }].map(({ key, label }) => (
+          {[{ key: 'home', label: 'Home' }, { key: 'search', label: 'Explore' }, { key: 'profile', label: 'Profile' }].map(({ key, label }) => (
             <button key={key} onClick={() => setTab(key)} style={{ flex: 1, padding: '12px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: tab === key ? '#000' : '#999', fontWeight: tab === key ? '600' : '400', borderTop: tab === key ? '3px solid #000' : 'none' }}>
               {label}
             </button>
@@ -208,12 +239,12 @@ export default function Home() {
             <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#000' }}>{following.size}</p><p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#999' }}>Following</p></div>
             <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#000' }}>{users.length}</p><p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#999' }}>Users</p></div>
           </div>
-          <button onClick={async () => { await signOut(auth); router.push('/join'); }} style={{ width: '100%', padding: '12px', backgroundColor: '#e5e5e5', border: 'none', borderRadius: '20px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', color: '#000' }}>
+          <button onClick={async () => { await signOut(auth); setUser(null); setEmail(''); setPassword(''); }} style={{ width: '100%', padding: '12px', backgroundColor: '#e5e5e5', border: 'none', borderRadius: '20px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', color: '#000' }}>
             Logout
           </button>
         </div>
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #e5e5e5', backgroundColor: '#fff', display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
-          {[{ key: 'home', label: 'Home' }, { key: 'search', label: 'Explore' }, { key: 'messages', label: 'Messages' }, { key: 'profile', label: 'Profile' }].map(({ key, label }) => (
+          {[{ key: 'home', label: 'Home' }, { key: 'search', label: 'Explore' }, { key: 'profile', label: 'Profile' }].map(({ key, label }) => (
             <button key={key} onClick={() => setTab(key)} style={{ flex: 1, padding: '12px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: tab === key ? '#000' : '#999', fontWeight: tab === key ? '600' : '400', borderTop: tab === key ? '3px solid #000' : 'none' }}>
               {label}
             </button>
@@ -223,4 +254,3 @@ export default function Home() {
     );
   }
 }
-// cache bust
