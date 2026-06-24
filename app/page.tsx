@@ -11,10 +11,11 @@ interface Post {
   userId: string;
   userName: string;
   content: string;
+  image?: string;
+  video?: string;
   likes: number;
   comments?: { [key: string]: any };
   createdAt: string;
-  translatedContent?: string;
 }
 
 interface UserProfile {
@@ -29,7 +30,6 @@ interface Message {
   fromUserName: string;
   content: string;
   createdAt: string;
-  translatedContent?: string;
 }
 
 export default function App() {
@@ -50,29 +50,10 @@ export default function App() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState('');
-  const [selectedLanguage, setSelectedLanguage] = useState('ja');
-  const [translatingPostId, setTranslatingPostId] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const router = useRouter();
   const auth = getAuth();
   const user = auth.currentUser;
-
-  const languages = [
-    { code: 'ja', name: '日本語' },
-    { code: 'en', name: 'English' },
-    { code: 'zh-CN', name: '中文（簡体字）' },
-    { code: 'ko', name: '한국어' },
-    { code: 'es', name: 'Español' },
-    { code: 'fr', name: 'Français' },
-    { code: 'de', name: 'Deutsch' },
-    { code: 'it', name: 'Italiano' },
-    { code: 'pt', name: 'Português' },
-    { code: 'ru', name: 'Русский' },
-    { code: 'ar', name: 'العربية' },
-    { code: 'th', name: 'ไทย' },
-    { code: 'vi', name: 'Tiếng Việt' },
-    { code: 'id', name: 'Bahasa Indonesia' },
-    { code: 'hi', name: 'हिन्दी' },
-  ];
 
   useEffect(() => {
     if (!user) {
@@ -143,37 +124,6 @@ export default function App() {
     return () => unsubscribe();
   }, [selectedUserId, user]);
 
-  const handleTranslate = async (postId: string, content: string) => {
-    if (selectedLanguage === 'ja') return;
-
-    setTranslatingPostId(postId);
-
-    try {
-      const response = await fetch('/api/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: content,
-          targetLanguage: selectedLanguage,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setPosts(posts.map(p => 
-          p.id === postId 
-            ? { ...p, translatedContent: data.translatedText }
-            : p
-        ));
-      }
-    } catch (err) {
-      console.error('翻訳失敗:', err);
-    } finally {
-      setTranslatingPostId(null);
-    }
-  };
-
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim() || !user) return;
@@ -189,11 +139,13 @@ export default function App() {
           userId: user.uid,
           userName: user.email?.split('@')[0] || 'User',
           content,
+          image: selectedImage,
         }),
       });
 
       if (!response.ok) throw new Error('投稿に失敗しました');
       setContent('');
+      setSelectedImage(null);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -221,7 +173,7 @@ export default function App() {
         likes: isCurrentlyLiked ? Math.max(0, (post?.likes || 0) - 1) : (post?.likes || 0) + 1,
       });
     } catch (err) {
-      console.error('いいね失敗:', err);
+      console.error('Like failed:', err);
     }
   };
 
@@ -243,7 +195,7 @@ export default function App() {
 
       setCommentTexts({ ...commentTexts, [postId]: '' });
     } catch (err) {
-      console.error('コメント失敗:', err);
+      console.error('Comment failed:', err);
     }
   };
 
@@ -271,7 +223,7 @@ export default function App() {
         }),
       });
     } catch (err) {
-      console.error('フォロー失敗:', err);
+      console.error('Follow failed:', err);
     }
   };
 
@@ -293,7 +245,7 @@ export default function App() {
 
       setMessageText('');
     } catch (err) {
-      console.error('メッセージ送信失敗:', err);
+      console.error('Message send failed:', err);
     }
   };
 
@@ -320,93 +272,99 @@ export default function App() {
     router.push('/join');
   };
 
-  // ホームタブ
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setSelectedImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   if (tab === 'home') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#000', color: '#fff' }}>
-        <div style={{ borderBottom: '1px solid #262626', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: '700', margin: 0, background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>SafeSpace</h1>
-          <select 
-            value={selectedLanguage}
-            onChange={(e) => setSelectedLanguage(e.target.value)}
-            style={{ padding: '8px 12px', backgroundColor: '#262626', color: '#fff', border: '1px solid #262626', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
-            {languages.map(lang => (
-              <option key={lang.code} value={lang.code}>{lang.name}</option>
-            ))}
-          </select>
-          <button onClick={handleLogout} style={{ padding: '8px 16px', backgroundColor: '#262626', color: '#fff', border: 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}>ログアウト</button>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#fff', color: '#000' }}>
+        <div style={{ borderBottom: '1px solid #e5e5e5', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', margin: 0, color: '#000' }}>SafeSpace</h1>
+          <button onClick={handleLogout} style={{ padding: '8px 16px', backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}>Logout</button>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '60px' }}>
-          <div style={{ borderBottom: '1px solid #262626', padding: '16px' }}>
+          <div style={{ borderBottom: '1px solid #e5e5e5', padding: '16px' }}>
             <form onSubmit={handlePost} style={{ display: 'flex', gap: '12px' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743)', flexShrink: 0 }} />
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#000', flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
-                <textarea placeholder="何か思いついた？" value={content} onChange={(e) => setContent(e.target.value)} style={{ width: '100%', padding: '12px', border: '1px solid #262626', fontSize: '15px', color: '#fff', minHeight: '40px', fontFamily: 'inherit', backgroundColor: '#262626', borderRadius: '20px', resize: 'vertical' }} />
-                {error && <div style={{ color: '#f91880', fontSize: '12px', marginTop: '8px' }}>{error}</div>}
-                <button type="submit" disabled={loading || !content.trim()} style={{ marginTop: '12px', padding: '8px 24px', background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743)', color: '#fff', border: 'none', borderRadius: '20px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', opacity: loading || !content.trim() ? 0.5 : 1 }}>
-                  {loading ? '投稿中...' : '投稿'}
-                </button>
+                <textarea placeholder="What's happening?!" value={content} onChange={(e) => setContent(e.target.value)} style={{ width: '100%', padding: '12px', border: '1px solid #e5e5e5', fontSize: '15px', color: '#000', minHeight: '40px', fontFamily: 'inherit', backgroundColor: '#fff', borderRadius: '20px', resize: 'vertical' }} />
+                {selectedImage && (
+                  <div style={{ marginTop: '12px', position: 'relative' }}>
+                    <img src={selectedImage} alt="preview" style={{ maxWidth: '100%', borderRadius: '12px', maxHeight: '300px' }} />
+                    <button onClick={() => setSelectedImage(null)} style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
+                  </div>
+                )}
+                {error && <div style={{ color: '#d32f2f', fontSize: '12px', marginTop: '8px' }}>{error}</div>}
+                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                  <label style={{ cursor: 'pointer', padding: '6px 12px', backgroundColor: '#f0f0f0', border: 'none', borderRadius: '20px', fontSize: '12px' }}>
+                    Image
+                    <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
+                  </label>
+                  <button type="submit" disabled={loading || !content.trim()} style={{ padding: '8px 24px', backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '20px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', opacity: loading || !content.trim() ? 0.5 : 1 }}>
+                    {loading ? 'Posting...' : 'Post'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
 
           {posts.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#666' }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
-              <p style={{ fontSize: '15px', margin: 0 }}>投稿がまだありません</p>
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>
+              <p style={{ fontSize: '15px', margin: 0 }}>No posts yet</p>
             </div>
           ) : (
             posts.map((post) => (
-              <div key={post.id} style={{ borderBottom: '1px solid #262626', padding: '12px 16px' }}>
+              <div key={post.id} style={{ borderBottom: '1px solid #e5e5e5', padding: '12px 16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743)' }} />
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#000' }} />
                     <div>
-                      <div style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>{post.userName}</div>
-                      <div style={{ fontSize: '12px', color: '#999' }}>{new Date(post.createdAt).toLocaleDateString('ja-JP')}</div>
+                      <div style={{ fontSize: '15px', fontWeight: '600', color: '#000' }}>{post.userName}</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>{new Date(post.createdAt).toLocaleDateString()}</div>
                     </div>
                   </div>
                   {post.userId !== user?.uid && (
-                    <button onClick={() => handleFollow(post.userId)} style={{ padding: '6px 12px', background: following.has(post.userId) ? 'transparent' : 'linear-gradient(45deg, #f09433, #e6683c)', color: following.has(post.userId) ? '#999' : '#fff', border: following.has(post.userId) ? '1px solid #262626' : 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}>
-                      {following.has(post.userId) ? 'フォロー中' : 'フォロー'}
+                    <button onClick={() => handleFollow(post.userId)} style={{ padding: '6px 12px', backgroundColor: following.has(post.userId) ? '#f0f0f0' : '#000', color: following.has(post.userId) ? '#000' : '#fff', border: following.has(post.userId) ? '1px solid #ccc' : 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}>
+                      {following.has(post.userId) ? 'Following' : 'Follow'}
                     </button>
                   )}
                 </div>
 
-                <p style={{ fontSize: '15px', color: '#fff', margin: '12px 0', lineHeight: '1.5', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                  {post.translatedContent ? post.translatedContent : post.content}
-                </p>
+                <p style={{ fontSize: '15px', color: '#000', margin: '12px 0', lineHeight: '1.5', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{post.content}</p>
 
-                {selectedLanguage !== 'ja' && !post.translatedContent && (
-                  <button 
-                    onClick={() => handleTranslate(post.id, post.content)}
-                    disabled={translatingPostId === post.id}
-                    style={{ fontSize: '12px', color: '#f09433', background: 'none', border: 'none', cursor: 'pointer', marginTop: '8px' }}>
-                    {translatingPostId === post.id ? '翻訳中...' : '🌍 翻訳する'}
-                  </button>
+                {post.image && (
+                  <img src={post.image} alt="post" style={{ maxWidth: '100%', borderRadius: '12px', marginBottom: '12px', maxHeight: '400px' }} />
                 )}
 
-                <div style={{ display: 'flex', gap: '20px', marginTop: '12px', color: '#999', paddingTop: '12px', borderTop: '1px solid #262626' }}>
-                  <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: likedPosts.has(post.id) ? '#f91880' : '#fff', padding: 0 }}>
-                    {likedPosts.has(post.id) ? '❤️' : '🤍'} {post.likes}
+                <div style={{ display: 'flex', gap: '20px', marginTop: '12px', color: '#666', paddingTop: '12px', borderTop: '1px solid #e5e5e5' }}>
+                  <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: likedPosts.has(post.id) ? '#e91e63' : '#666', padding: 0 }}>
+                    {likedPosts.has(post.id) ? 'Like' : 'Like'} {post.likes}
                   </button>
-                  <button onClick={() => setExpandedComments(new Set(expandedComments).add(post.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: '#fff', padding: 0 }}>
-                    💬 {Object.keys(post.comments || {}).length}
+                  <button onClick={() => setExpandedComments(new Set(expandedComments).add(post.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: '#666', padding: 0 }}>
+                    Comment {Object.keys(post.comments || {}).length}
                   </button>
                 </div>
 
                 {expandedComments.has(post.id) && (
-                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #262626' }}>
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e5e5e5' }}>
                     {Object.values(post.comments || {}).map((comment: any) => (
                       <div key={comment.id} style={{ marginBottom: '12px', fontSize: '14px' }}>
-                        <strong style={{ color: '#fff' }}>{comment.userName}</strong>
-                        <p style={{ color: '#ccc', margin: '4px 0' }}>{comment.content}</p>
+                        <strong style={{ color: '#000' }}>{comment.userName}</strong>
+                        <p style={{ color: '#333', margin: '4px 0' }}>{comment.content}</p>
                       </div>
                     ))}
                     <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                      <input type="text" placeholder="コメントを追加..." value={commentTexts[post.id] || ''} onChange={(e) => setCommentTexts({ ...commentTexts, [post.id]: e.target.value })} style={{ flex: 1, padding: '8px 12px', border: '1px solid #262626', borderRadius: '20px', fontSize: '14px', color: '#fff', backgroundColor: '#262626' }} />
-                      <button onClick={() => handleAddComment(post.id)} style={{ padding: '8px 16px', background: 'linear-gradient(45deg, #f09433, #e6683c)', color: '#fff', border: 'none', borderRadius: '20px', cursor: 'pointer', fontWeight: '600' }}>送信</button>
+                      <input type="text" placeholder="Add a comment..." value={commentTexts[post.id] || ''} onChange={(e) => setCommentTexts({ ...commentTexts, [post.id]: e.target.value })} style={{ flex: 1, padding: '8px 12px', border: '1px solid #e5e5e5', borderRadius: '20px', fontSize: '14px', color: '#000', backgroundColor: '#fff' }} />
+                      <button onClick={() => handleAddComment(post.id)} style={{ padding: '8px 16px', backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '20px', cursor: 'pointer', fontWeight: '600' }}>Post</button>
                     </div>
                   </div>
                 )}
@@ -415,9 +373,9 @@ export default function App() {
           )}
         </div>
 
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #262626', backgroundColor: '#000', display: 'flex', justifyContent: 'space-around', padding: '12px 0' }}>
-          {[{ key: 'home', icon: '🏠' }, { key: 'search', icon: '🔍' }, { key: 'messages', icon: '💬' }, { key: 'profile', icon: '👤' }].map(({ key, icon }) => (
-            <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', fontSize: '20px', opacity: tab === key ? 1 : 0.6 }}>{icon}</button>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #e5e5e5', backgroundColor: '#fff', display: 'flex', justifyContent: 'space-around', padding: '12px 0' }}>
+          {[{ key: 'home', label: 'Home' }, { key: 'search', label: 'Explore' }, { key: 'messages', label: 'Messages' }, { key: 'profile', label: 'Profile' }].map(({ key, label }) => (
+            <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', fontSize: '12px', color: tab === key ? '#000' : '#999', fontWeight: tab === key ? '600' : '400' }}>{label}</button>
           ))}
         </div>
       </div>
@@ -425,29 +383,31 @@ export default function App() {
   }
 
   if (tab === 'search') {
-    const filteredUsers = Object.entries(allUsers).filter(([id, u]: any) => id !== user?.uid && (u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || u.email?.toLowerCase().includes(searchQuery.toLowerCase()))).map(([id, u]: any) => ({ id, ...u }));
+    const filteredUsers = Object.entries(allUsers)
+      .filter(([id, u]: any) => id !== user?.uid && searchQuery && (u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || u.email?.toLowerCase().includes(searchQuery.toLowerCase())))
+      .map(([id, u]: any) => ({ id, ...u }));
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#000', color: '#fff', paddingBottom: '60px' }}>
-        <div style={{ borderBottom: '1px solid #262626', padding: '16px' }}>
-          <input type="text" placeholder="ユーザーを検索..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: '100%', padding: '12px', border: '1px solid #262626', borderRadius: '20px', fontSize: '15px', color: '#fff', backgroundColor: '#262626' }} />
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#fff', color: '#000', paddingBottom: '60px' }}>
+        <div style={{ borderBottom: '1px solid #e5e5e5', padding: '16px' }}>
+          <input type="text" placeholder="Search users..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: '100%', padding: '12px', border: '1px solid #e5e5e5', borderRadius: '20px', fontSize: '15px', color: '#000', backgroundColor: '#fff' }} />
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {filteredUsers.map((u: any) => (
-            <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #262626' }}>
+            <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #e5e5e5' }}>
               <div>
-                <p style={{ fontSize: '15px', fontWeight: '600', margin: 0 }}>{u.name || u.email?.split('@')[0]}</p>
-                <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>{u.email}</p>
+                <p style={{ fontSize: '15px', fontWeight: '600', margin: 0, color: '#000' }}>{u.name || u.email?.split('@')[0]}</p>
+                <p style={{ fontSize: '13px', color: '#666', margin: 0 }}>{u.email}</p>
               </div>
-              <button onClick={() => handleFollow(u.id)} style={{ padding: '6px 16px', background: following.has(u.id) ? 'transparent' : 'linear-gradient(45deg, #f09433, #e6683c)', color: following.has(u.id) ? '#999' : '#fff', border: following.has(u.id) ? '1px solid #262626' : 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}>
-                {following.has(u.id) ? 'フォロー中' : 'フォロー'}
+              <button onClick={() => handleFollow(u.id)} style={{ padding: '6px 16px', backgroundColor: following.has(u.id) ? '#f0f0f0' : '#000', color: following.has(u.id) ? '#000' : '#fff', border: following.has(u.id) ? '1px solid #ccc' : 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}>
+                {following.has(u.id) ? 'Following' : 'Follow'}
               </button>
             </div>
           ))}
         </div>
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #262626', backgroundColor: '#000', display: 'flex', justifyContent: 'space-around', padding: '12px 0' }}>
-          {[{ key: 'home', icon: '🏠' }, { key: 'search', icon: '🔍' }, { key: 'messages', icon: '💬' }, { key: 'profile', icon: '👤' }].map(({ key, icon }) => (
-            <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', fontSize: '20px', opacity: tab === key ? 1 : 0.6 }}>{icon}</button>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #e5e5e5', backgroundColor: '#fff', display: 'flex', justifyContent: 'space-around', padding: '12px 0' }}>
+          {[{ key: 'home', label: 'Home' }, { key: 'search', label: 'Explore' }, { key: 'messages', label: 'Messages' }, { key: 'profile', label: 'Profile' }].map(({ key, label }) => (
+            <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', fontSize: '12px', color: tab === key ? '#000' : '#999', fontWeight: tab === key ? '600' : '400' }}>{label}</button>
           ))}
         </div>
       </div>
@@ -460,24 +420,16 @@ export default function App() {
       .map(([id, u]: any) => ({ id, ...u }));
 
     return (
-      <div style={{ display: 'flex', height: '100vh', backgroundColor: '#000', color: '#fff', paddingBottom: '0' }}>
-        <div style={{ width: '280px', borderRight: '1px solid #262626', overflowY: 'auto', display: 'flex', flexDirection: 'column', backgroundColor: '#000' }}>
-          <div style={{ padding: '16px', borderBottom: '1px solid #262626' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>メッセージ</h2>
+      <div style={{ display: 'flex', height: '100vh', backgroundColor: '#fff', color: '#000', paddingBottom: '0' }}>
+        <div style={{ width: '280px', borderRight: '1px solid #e5e5e5', overflowY: 'auto', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
+          <div style={{ padding: '16px', borderBottom: '1px solid #e5e5e5', display: 'flex', justifyContent: 'space-between' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>Messages</h2>
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {userConversations.map((u: any) => (
-              <div
-                key={u.id}
-                onClick={() => setSelectedUserId(u.id)}
-                style={{
-                  padding: '12px 16px',
-                  borderBottom: '1px solid #262626',
-                  cursor: 'pointer',
-                  backgroundColor: selectedUserId === u.id ? '#262626' : '#000',
-                }}>
-                <p style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 4px 0' }}>{u.name || u.email?.split('@')[0]}</p>
-                <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>{u.email}</p>
+              <div key={u.id} onClick={() => setSelectedUserId(u.id)} style={{ padding: '12px 16px', borderBottom: '1px solid #e5e5e5', cursor: 'pointer', backgroundColor: selectedUserId === u.id ? '#f0f0f0' : '#fff' }}>
+                <p style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 4px 0', color: '#000' }}>{u.name || u.email?.split('@')[0]}</p>
+                <p style={{ fontSize: '13px', color: '#666', margin: 0 }}>{u.email}</p>
               </div>
             ))}
           </div>
@@ -485,43 +437,34 @@ export default function App() {
 
         {selectedUserId ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ borderBottom: '1px solid #262626', padding: '16px' }}>
-              <h3 style={{ margin: 0 }}>{allUsers[selectedUserId]?.name || allUsers[selectedUserId]?.email?.split('@')[0]}</h3>
+            <div style={{ borderBottom: '1px solid #e5e5e5', padding: '16px' }}>
+              <h3 style={{ margin: 0, color: '#000' }}>{allUsers[selectedUserId]?.name || allUsers[selectedUserId]?.email?.split('@')[0]}</h3>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {messages.map((msg) => (
                 <div key={msg.id} style={{ textAlign: msg.fromUserId === user?.uid ? 'right' : 'left' }}>
-                  <div style={{ display: 'inline-block', maxWidth: '60%', padding: '10px 14px', borderRadius: '18px', backgroundColor: msg.fromUserId === user?.uid ? '#f09433' : '#262626', color: msg.fromUserId === user?.uid ? '#000' : '#fff', fontSize: '14px', wordBreak: 'break-word' }}>
+                  <div style={{ display: 'inline-block', maxWidth: '60%', padding: '10px 14px', borderRadius: '18px', backgroundColor: msg.fromUserId === user?.uid ? '#000' : '#f0f0f0', color: msg.fromUserId === user?.uid ? '#fff' : '#000', fontSize: '14px', wordBreak: 'break-word' }}>
                     {msg.content}
                   </div>
                 </div>
               ))}
             </div>
 
-            <div style={{ padding: '12px 16px', borderTop: '1px solid #262626', display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                placeholder="メッセージを入力..."
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                style={{ flex: 1, padding: '10px 14px', border: '1px solid #262626', borderRadius: '20px', fontSize: '14px', color: '#fff', backgroundColor: '#262626' }}
-              />
-              <button onClick={handleSendMessage} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #f09433, #e6683c)', color: '#fff', border: 'none', borderRadius: '20px', cursor: 'pointer', fontWeight: '600' }}>
-                送信
-              </button>
+            <div style={{ padding: '12px 16px', borderTop: '1px solid #e5e5e5', display: 'flex', gap: '8px' }}>
+              <input type="text" placeholder="Message..." value={messageText} onChange={(e) => setMessageText(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} style={{ flex: 1, padding: '10px 14px', border: '1px solid #e5e5e5', borderRadius: '20px', fontSize: '14px', color: '#000', backgroundColor: '#fff' }} />
+              <button onClick={handleSendMessage} style={{ padding: '10px 20px', backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '20px', cursor: 'pointer', fontWeight: '600' }}>Send</button>
             </div>
           </div>
         ) : (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
-            メッセージを選択してください
+            Select a message
           </div>
         )}
 
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #262626', backgroundColor: '#000', display: 'flex', justifyContent: 'space-around', padding: '12px 0' }}>
-          {[{ key: 'home', icon: '🏠' }, { key: 'search', icon: '🔍' }, { key: 'messages', icon: '💬' }, { key: 'profile', icon: '👤' }].map(({ key, icon }) => (
-            <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', fontSize: '20px', opacity: tab === key ? 1 : 0.6 }}>{icon}</button>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #e5e5e5', backgroundColor: '#fff', display: 'flex', justifyContent: 'space-around', padding: '12px 0' }}>
+          {[{ key: 'home', label: 'Home' }, { key: 'search', label: 'Explore' }, { key: 'messages', label: 'Messages' }, { key: 'profile', label: 'Profile' }].map(({ key, label }) => (
+            <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', fontSize: '12px', color: tab === key ? '#000' : '#999', fontWeight: tab === key ? '600' : '400' }}>{label}</button>
           ))}
         </div>
       </div>
@@ -530,72 +473,60 @@ export default function App() {
 
   if (tab === 'profile') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#000', color: '#fff', paddingBottom: '60px' }}>
-        <div style={{ borderBottom: '1px solid #262626', padding: '12px 16px' }}>
-          <h1 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>プロフィール</h1>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#fff', color: '#000', paddingBottom: '60px' }}>
+        <div style={{ borderBottom: '1px solid #e5e5e5', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>Profile</h1>
+          <button onClick={handleLogout} style={{ padding: '8px 16px', backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer' }}>Logout</button>
         </div>
 
-        <div style={{ background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743)', height: '150px' }} />
+        <div style={{ backgroundColor: '#f0f0f0', height: '150px' }} />
 
         <div style={{ padding: '0 16px', marginTop: '-40px', position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743)', border: '3px solid #000' }} />
+            <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#000', border: '3px solid #fff' }} />
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => setEditing(!editing)} style={{ padding: '10px 20px', backgroundColor: '#262626', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
-                {editing ? 'キャンセル' : '編集'}
-              </button>
-              <button onClick={() => router.push('/verify')} style={{ padding: '10px 20px', backgroundColor: '#262626', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
-                確認
+              <button onClick={() => setEditing(!editing)} style={{ padding: '10px 20px', backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}>
+                {editing ? 'Cancel' : 'Edit'}
               </button>
             </div>
           </div>
 
-          <p style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0' }}>
-            {profile.name || user?.email} {profile.identityVerified && '✅'}
+          <p style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0', color: '#000' }}>
+            {profile.name || user?.email}
           </p>
-          <p style={{ fontSize: '13px', color: '#999', margin: '0 0 16px 0' }}>{user?.email}</p>
+          <p style={{ fontSize: '13px', color: '#666', margin: '0 0 16px 0' }}>{user?.email}</p>
 
-          <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid #262626' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid #e5e5e5' }}>
             <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>{stats.posts}</p>
-              <p style={{ fontSize: '12px', color: '#999', margin: '4px 0 0 0' }}>投稿</p>
+              <p style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#000' }}>{stats.posts}</p>
+              <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 0 0' }}>Posts</p>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>{stats.followers}</p>
-              <p style={{ fontSize: '12px', color: '#999', margin: '4px 0 0 0' }}>フォロワー</p>
+              <p style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#000' }}>{stats.followers}</p>
+              <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 0 0' }}>Followers</p>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>{stats.following}</p>
-              <p style={{ fontSize: '12px', color: '#999', margin: '4px 0 0 0' }}>フォロー中</p>
+              <p style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#000' }}>{stats.following}</p>
+              <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 0 0' }}>Following</p>
             </div>
           </div>
 
           {editing ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-              <input type="text" placeholder="名前" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} style={{ padding: '12px', border: '1px solid #262626', borderRadius: '8px', fontSize: '14px', color: '#fff', backgroundColor: '#262626' }} />
-              <textarea placeholder="自己紹介" value={profile.bio} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} style={{ padding: '12px', border: '1px solid #262626', borderRadius: '8px', fontSize: '14px', color: '#fff', backgroundColor: '#262626', minHeight: '80px' }} />
-              <button onClick={handleSaveProfile} disabled={loading} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #f09433, #e6683c)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
-                {loading ? '保存中...' : '保存'}
+              <input type="text" placeholder="Name" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} style={{ padding: '12px', border: '1px solid #e5e5e5', borderRadius: '8px', fontSize: '14px', color: '#000', backgroundColor: '#fff' }} />
+              <textarea placeholder="Bio" value={profile.bio} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} style={{ padding: '12px', border: '1px solid #e5e5e5', borderRadius: '8px', fontSize: '14px', color: '#000', backgroundColor: '#fff', minHeight: '80px', fontFamily: 'inherit' }} />
+              <button onClick={handleSaveProfile} disabled={loading} style={{ padding: '10px 20px', backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+                {loading ? 'Saving...' : 'Save'}
               </button>
             </div>
           ) : (
-            <p style={{ fontSize: '14px', color: '#ccc', marginBottom: '20px' }}>{profile.bio || '自己紹介がまだ設定されていません'}</p>
-          )}
-
-          {profile.identityVerified ? (
-            <div style={{ backgroundColor: '#1a3a1a', borderRadius: '8px', padding: '12px' }}>
-              <p style={{ fontSize: '13px', color: '#4caf50', margin: 0 }}>✅ 本人確認済み</p>
-            </div>
-          ) : (
-            <div style={{ backgroundColor: '#3a2a1a', borderRadius: '8px', padding: '12px' }}>
-              <p style={{ fontSize: '13px', color: '#ff9800', margin: 0 }}>⚠️ 本人確認が必要です</p>
-            </div>
+            <p style={{ fontSize: '14px', color: '#333', marginBottom: '20px' }}>{profile.bio || 'No bio set'}</p>
           )}
         </div>
 
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #262626', backgroundColor: '#000', display: 'flex', justifyContent: 'space-around', padding: '12px 0' }}>
-          {[{ key: 'home', icon: '🏠' }, { key: 'search', icon: '🔍' }, { key: 'messages', icon: '💬' }, { key: 'profile', icon: '👤' }].map(({ key, icon }) => (
-            <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', fontSize: '20px', opacity: tab === key ? 1 : 0.6 }}>{icon}</button>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #e5e5e5', backgroundColor: '#fff', display: 'flex', justifyContent: 'space-around', padding: '12px 0' }}>
+          {[{ key: 'home', label: 'Home' }, { key: 'search', label: 'Explore' }, { key: 'messages', label: 'Messages' }, { key: 'profile', label: 'Profile' }].map(({ key, label }) => (
+            <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', fontSize: '12px', color: tab === key ? '#000' : '#999', fontWeight: tab === key ? '600' : '400' }}>{label}</button>
           ))}
         </div>
       </div>
