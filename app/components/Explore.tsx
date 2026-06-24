@@ -5,46 +5,16 @@ interface ExploreProps {
 }
 
 export default function Explore({ c }: ExploreProps) {
-  const posts = Array(12).fill(0).map((_, i) => ({ id: i, views: Math.floor(Math.random() * 100000) }));
-
   return (
-    <div style={{ 
-      maxWidth: '468px', 
-      margin: '0 auto', 
-      backgroundColor: c.bg, 
-      color: c.text, 
-      minHeight: '100vh',
-      borderLeft: `1px solid ${c.border}`,
-      borderRight: `1px solid ${c.border}`,
-      paddingBottom: '80px'
-    }}>
-      {/* Header */}
-      <div style={{ 
-        padding: '16px',
-        borderBottom: `1px solid ${c.border}`,
-        position: 'sticky',
-        top: 0,
-        backgroundColor: c.bg,
-        zIndex: 100
-      }}>
-        <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>Explore</h1>
+    <div style={{ maxWidth: '468px', margin: '0 auto', backgroundColor: c.bg, color: c.text, minHeight: '100vh', paddingBottom: '80px' }}>
+      <div style={{ padding: '16px', borderBottom: `1px solid ${c.border}` }}>
+        <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>Explore</h2>
       </div>
-
-      {/* Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px', padding: '2px' }}>
-        {posts.map((post) => (
-          <div
-            key={post.id}
-            style={{
-              aspectRatio: '1',
-              backgroundColor: c.button,
-              cursor: 'pointer',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ position: 'absolute', bottom: '8px', left: '8px', fontSize: '11px', color: '#fff', fontWeight: '600' }}>
-              {post.views.toLocaleString()} views
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px', padding: '2px' }}>
+        {[...Array(9)].map((_, i) => (
+          <div key={i} style={{ paddingBottom: '100%', position: 'relative', backgroundColor: c.button, borderRadius: '0' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+              {i % 3 === 0 ? '📷' : i % 3 === 1 ? '🎥' : '✨'}
             </div>
           </div>
         ))}

@@ -12,13 +12,32 @@ interface OnboardingProps {
 export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
   const [step, setStep] = useState<'gender' | 'id' | 'profile' | 'photo'>('gender');
   const [selectedGender, setSelectedGender] = useState('');
-  const [idType, setIdType] = useState<'passport' | 'license' | 'national-id'>('passport');
-  const [idUploaded, setIdUploaded] = useState(false);
+  const [idType, setIdType] = useState<'passport' | 'license' | 'national-id'>('license');
+  const [idFile, setIdFile] = useState<File | null>(null);
+  const [idError, setIdError] = useState('');
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
-  const [photoUploaded, setPhotoUploaded] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const validateIDFile = (file: File) => {
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+
+    if (!validTypes.includes(file.type)) {
+      setIdError('Only JPG, PNG, or PDF allowed');
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      setIdError('File too large (max 5MB)');
+      return false;
+    }
+
+    setIdError('');
+    return true;
+  };
 
   const handleGenderSelect = (gender: string) => {
     if (gender === 'female') {
@@ -27,23 +46,42 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
     }
   };
 
-  const handleIDUpload = () => {
-    if (idUploaded) {
-      setStep('profile');
+  const handleIDUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (validateIDFile(file)) {
+      setIdFile(file);
     }
+  };
+
+  const handleIDVerify = () => {
+    if (!idFile) {
+      setIdError('File required');
+      return;
+    }
+    setStep('profile');
   };
 
   const handleProfileComplete = () => {
-    if (name.trim() && username.trim()) {
-      setStep('photo');
+    if (name.trim().length < 2) {
+      return;
+    }
+    if (username.trim().length < 3) {
+      return;
+    }
+    setStep('photo');
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
     }
   };
 
-  const handlePhotoUpload = () => {
-    setPhotoUploaded(true);
-    setTimeout(() => {
-      onComplete();
-    }, 500);
+  const handleComplete = () => {
+    onComplete();
   };
 
   return (
@@ -59,7 +97,6 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
       padding: '24px',
       boxSizing: 'border-box'
     }}>
-      {/* Header */}
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ 
           fontSize: '24px', 
@@ -72,17 +109,16 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
         }}>
           SafeSpace
         </h1>
-        <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>Women-only community</p>
+        <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>Women-only</p>
       </div>
 
-      {/* Progress */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px' }}>
         {['gender', 'id', 'profile', 'photo'].map((s) => (
           <div
             key={s}
             style={{
               flex: 1,
-              height: '4px',
+              height: '3px',
               backgroundColor: ['gender', 'id', 'profile', 'photo'].indexOf(s) <= ['gender', 'id', 'profile', 'photo'].indexOf(step) ? '#ff1493' : c.border,
               borderRadius: '2px',
             }}
@@ -90,29 +126,25 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
         ))}
       </div>
 
-      {/* Step 1: Gender */}
       {step === 'gender' && (
         <div>
-          <h2 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>Verify your gender</h2>
-          <p style={{ margin: '0 0 24px 0', fontSize: '13px', color: '#999' }}>SafeSpace is for women only</p>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600' }}>Verify gender</h2>
+          <p style={{ margin: '0 0 24px 0', fontSize: '12px', color: '#999' }}>SafeSpace is for women only</p>
 
           <button
             onClick={() => handleGenderSelect('female')}
             style={{
               width: '100%',
-              padding: '16px',
+              padding: '12px',
               backgroundColor: c.input,
               color: c.text,
               border: `1px solid ${c.border}`,
-              borderRadius: '8px',
-              fontSize: '14px',
+              borderRadius: '4px',
+              fontSize: '13px',
               fontWeight: '500',
               cursor: 'pointer',
               marginBottom: '8px',
-              transition: 'all 0.2s',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = c.button)}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = c.input)}
           >
             Female
           </button>
@@ -121,12 +153,12 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
             disabled
             style={{
               width: '100%',
-              padding: '16px',
+              padding: '12px',
               backgroundColor: c.button,
               color: '#999',
               border: `1px solid ${c.border}`,
-              borderRadius: '8px',
-              fontSize: '14px',
+              borderRadius: '4px',
+              fontSize: '13px',
               fontWeight: '500',
               cursor: 'not-allowed',
               opacity: 0.5,
@@ -137,31 +169,30 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
         </div>
       )}
 
-      {/* Step 2: ID Upload */}
       {step === 'id' && (
         <div>
-          <h2 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>Verify your identity</h2>
-          <p style={{ margin: '0 0 24px 0', fontSize: '13px', color: '#999' }}>Upload a valid government ID</p>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600' }}>ID verification</h2>
+          <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#999' }}>Government ID required</p>
 
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
             {(['passport', 'license', 'national-id'] as const).map((type) => (
               <button
                 key={type}
                 onClick={() => setIdType(type)}
                 style={{
                   flex: 1,
-                  padding: '10px',
+                  padding: '8px',
                   backgroundColor: idType === type ? '#ff1493' : c.input,
                   color: idType === type ? '#fff' : c.text,
                   border: `1px solid ${idType === type ? '#ff1493' : c.border}`,
-                  borderRadius: '6px',
-                  fontSize: '12px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
                   fontWeight: '500',
                   cursor: 'pointer',
                   textTransform: 'capitalize',
                 }}
               >
-                {type === 'passport' ? 'Passport' : type === 'license' ? 'License' : 'National ID'}
+                {type === 'passport' ? 'Passport' : type === 'license' ? 'License' : 'ID'}
               </button>
             ))}
           </div>
@@ -171,48 +202,42 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
             style={{
               padding: '40px 24px',
               backgroundColor: c.input,
-              border: `2px dashed ${c.border}`,
-              borderRadius: '8px',
+              border: `2px dashed ${idFile ? '#ff1493' : c.border}`,
+              borderRadius: '4px',
               textAlign: 'center',
               cursor: 'pointer',
-              marginBottom: '16px',
-              transition: 'all 0.2s',
+              marginBottom: '12px',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = c.button)}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = c.input)}
           >
-            <p style={{ margin: 0, fontSize: '32px', marginBottom: '8px' }}>camera</p>
-            <p style={{ margin: 0, fontSize: '13px', fontWeight: '600' }}>Upload or take a photo</p>
-            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#999' }}>JPG, PNG or PDF</p>
+            <p style={{ margin: 0, fontSize: '28px', marginBottom: '8px' }}>camera</p>
+            <p style={{ margin: 0, fontSize: '12px', fontWeight: '600' }}>Upload</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#999' }}>JPG, PNG or PDF</p>
           </div>
 
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,.pdf"
+            accept="image/jpeg,image/png,.pdf"
+            onChange={handleIDUpload}
             style={{ display: 'none' }}
-            onChange={() => setIdUploaded(true)}
           />
 
-          {idUploaded && (
-            <div style={{ backgroundColor: c.button, padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
-              document_scan.jpg check
-            </div>
-          )}
+          {idFile && <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#0095f6' }}>check {idFile.name}</p>}
+          {idError && <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#ff4458' }}>{idError}</p>}
 
           <button
-            onClick={handleIDUpload}
-            disabled={!idUploaded}
+            onClick={handleIDVerify}
+            disabled={!idFile}
             style={{
               width: '100%',
               padding: '12px',
-              backgroundColor: idUploaded ? '#ff1493' : '#999',
+              backgroundColor: idFile ? '#ff1493' : '#999',
               color: '#fff',
               border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
+              borderRadius: '4px',
+              fontSize: '13px',
               fontWeight: '600',
-              cursor: idUploaded ? 'pointer' : 'not-allowed',
+              cursor: idFile ? 'pointer' : 'not-allowed',
             }}
           >
             Verify
@@ -220,11 +245,10 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
         </div>
       )}
 
-      {/* Step 3: Profile */}
       {step === 'profile' && (
         <div>
-          <h2 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>Set up your profile</h2>
-          <p style={{ margin: '0 0 24px 0', fontSize: '13px', color: '#999' }}>Tell us about yourself</p>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600' }}>Profile</h2>
+          <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#999' }}>About yourself</p>
 
           <input
             type="text"
@@ -236,8 +260,8 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
               padding: '12px',
               backgroundColor: c.input,
               color: c.text,
-              border: `1px solid ${c.border}`,
-              borderRadius: '8px',
+              border: `1px solid ${name.trim().length < 2 && name ? '#ff4458' : c.border}`,
+              borderRadius: '4px',
               fontSize: '13px',
               marginBottom: '12px',
               outline: 'none',
@@ -249,14 +273,14 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username (no spaces)"
+            placeholder="Username"
             style={{
               width: '100%',
               padding: '12px',
               backgroundColor: c.input,
               color: c.text,
-              border: `1px solid ${c.border}`,
-              borderRadius: '8px',
+              border: `1px solid ${username.trim().length < 3 && username ? '#ff4458' : c.border}`,
+              borderRadius: '4px',
               fontSize: '13px',
               marginBottom: '12px',
               outline: 'none',
@@ -274,9 +298,9 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
               backgroundColor: c.input,
               color: c.text,
               border: `1px solid ${c.border}`,
-              borderRadius: '8px',
+              borderRadius: '4px',
               fontSize: '13px',
-              minHeight: '80px',
+              minHeight: '60px',
               resize: 'none',
               outline: 'none',
               boxSizing: 'border-box',
@@ -287,17 +311,17 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
 
           <button
             onClick={handleProfileComplete}
-            disabled={!name.trim() || !username.trim()}
+            disabled={name.trim().length < 2 || username.trim().length < 3}
             style={{
               width: '100%',
               padding: '12px',
-              backgroundColor: name.trim() && username.trim() ? '#ff1493' : '#999',
+              backgroundColor: name.trim().length >= 2 && username.trim().length >= 3 ? '#ff1493' : '#999',
               color: '#fff',
               border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
+              borderRadius: '4px',
+              fontSize: '13px',
               fontWeight: '600',
-              cursor: name.trim() && username.trim() ? 'pointer' : 'not-allowed',
+              cursor: name.trim().length >= 2 && username.trim().length >= 3 ? 'pointer' : 'not-allowed',
             }}
           >
             Next
@@ -305,51 +329,46 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
         </div>
       )}
 
-      {/* Step 4: Photo */}
       {step === 'photo' && (
         <div>
-          <h2 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>Add a profile photo</h2>
-          <p style={{ margin: '0 0 24px 0', fontSize: '13px', color: '#999' }}>Make your profile more personal</p>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600' }}>Photo</h2>
+          <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#999' }}>Optional</p>
 
           <div
             onClick={() => fileInputRef.current?.click()}
             style={{
-              padding: '60px 24px',
+              padding: '50px 24px',
               backgroundColor: c.input,
-              border: `2px dashed ${c.border}`,
-              borderRadius: '8px',
+              border: `2px dashed ${photoFile ? '#ff1493' : c.border}`,
+              borderRadius: '4px',
               textAlign: 'center',
               cursor: 'pointer',
               marginBottom: '16px',
-              transition: 'all 0.2s',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = c.button)}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = c.input)}
           >
-            <p style={{ margin: 0, fontSize: '32px', marginBottom: '8px' }}>image</p>
-            <p style={{ margin: 0, fontSize: '13px', fontWeight: '600' }}>Upload a photo</p>
-            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#999' }}>or skip</p>
+            <p style={{ margin: 0, fontSize: '28px', marginBottom: '8px' }}>image</p>
+            <p style={{ margin: 0, fontSize: '12px', fontWeight: '600' }}>Upload photo</p>
           </div>
 
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            onChange={handlePhotoUpload}
             style={{ display: 'none' }}
-            onChange={() => setPhotoUploaded(true)}
           />
 
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
-              onClick={handlePhotoUpload}
+              onClick={handleComplete}
               style={{
                 flex: 1,
                 padding: '12px',
                 backgroundColor: c.input,
                 color: c.text,
                 border: `1px solid ${c.border}`,
-                borderRadius: '8px',
-                fontSize: '14px',
+                borderRadius: '4px',
+                fontSize: '13px',
                 fontWeight: '600',
                 cursor: 'pointer',
               }}
@@ -357,20 +376,20 @@ export default function Onboarding({ user, c, onComplete }: OnboardingProps) {
               Skip
             </button>
             <button
-              onClick={handlePhotoUpload}
+              onClick={handleComplete}
               style={{
                 flex: 1,
                 padding: '12px',
                 background: gradients.pink,
                 color: '#fff',
                 border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
+                borderRadius: '4px',
+                fontSize: '13px',
                 fontWeight: '600',
                 cursor: 'pointer',
               }}
             >
-              {photoUploaded ? 'Done' : 'Upload'}
+              Done
             </button>
           </div>
         </div>

@@ -6,66 +6,110 @@ import { gradients } from '@/app/utils/theme';
 
 interface AuthProps {
   c: Colors;
-  i18n: any;
 }
 
-export default function Auth({ c, i18n }: AuthProps) {
+export default function Auth({ c }: AuthProps) {
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
-  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validateEmail = (email: string) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
 
-  const handleLogin = async () => {
+  const handleEmailChange = (e: string) => {
+    setEmail(e);
+    if (e && !validateEmail(e)) {
+      setEmailError('Invalid email format');
+    } else {
+      setEmailError('');
+    }
+  };
+
+  const handlePasswordChange = (e: string) => {
+    setPassword(e);
+    if (tab === 'signup' && e.length > 0 && e.length < 6) {
+      setPasswordError('Minimum 6 characters');
+    } else {
+      setPasswordError('');
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError('');
+    
     if (!email || !password) {
       setError('Email and password required');
       return;
     }
+    
     if (!validateEmail(email)) {
       setError('Invalid email');
       return;
     }
+
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err: any) {
-      setError(err.message);
+      if (err.code === 'auth/user-not-found') {
+        setError('User not found');
+      } else if (err.code === 'auth/wrong-password') {
+        setError('Wrong password');
+      } else {
+        setError('Login failed');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSignup = async () => {
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError('');
+    
     if (!email || !password || !confirmPassword) {
       setError('All fields required');
       return;
     }
+    
     if (!validateEmail(email)) {
       setError('Invalid email');
       return;
     }
+
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Password minimum 6 characters');
       return;
     }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
+
     setIsLoading(true);
     try {
       await createUserWithEmailAndPassword(auth, email, password);
     } catch (err: any) {
-      setError(err.message);
+      if (err.code === 'auth/email-already-in-use') {
+        setError('Email already exists');
+      } else {
+        setError('Signup failed');
+      }
     } finally {
       setIsLoading(false);
     }
   };
+
+  const isDisabled = isLoading || Boolean(emailError) || Boolean(passwordError);
 
   return (
     <div style={{ 
@@ -80,9 +124,9 @@ export default function Auth({ c, i18n }: AuthProps) {
       padding: '24px',
       boxSizing: 'border-box'
     }}>
-      <div style={{ marginBottom: '32px', textAlign: 'center' }}>
+      <div style={{ marginBottom: '40px' }}>
         <h1 style={{ 
-          fontSize: '24px', 
+          fontSize: '28px', 
           fontWeight: '300',
           fontStyle: 'italic',
           margin: '0 0 8px 0',
@@ -92,73 +136,86 @@ export default function Auth({ c, i18n }: AuthProps) {
         }}>
           SafeSpace
         </h1>
-        <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>Women-only platform</p>
+        <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>Women-only</p>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-        {(['login', 'signup'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+        <button
+          onClick={() => setTab('login')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            backgroundColor: tab === 'login' ? '#ff1493' : c.input,
+            color: tab === 'login' ? '#fff' : c.text,
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '13px',
+          }}
+        >
+          Log In
+        </button>
+        <button
+          onClick={() => setTab('signup')}
+          style={{
+            flex: 1,
+            padding: '12px',
+            backgroundColor: tab === 'signup' ? '#ff1493' : c.input,
+            color: tab === 'signup' ? '#fff' : c.text,
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '13px',
+          }}
+        >
+          Sign Up
+        </button>
+      </div>
+
+      <form onSubmit={tab === 'login' ? handleLogin : handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => handleEmailChange(e.target.value)}
+            placeholder="Email"
             style={{
-              flex: 1,
+              width: '100%',
               padding: '12px',
-              backgroundColor: tab === t ? '#ff1493' : c.input,
-              color: tab === t ? '#fff' : c.text,
-              border: `1px solid ${tab === t ? '#ff1493' : c.border}`,
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: '600',
+              backgroundColor: c.input,
+              color: c.text,
+              border: `1px solid ${emailError ? '#ff4458' : c.border}`,
+              borderRadius: '4px',
               fontSize: '13px',
-              textTransform: 'capitalize',
-              transition: 'all 0.2s',
+              outline: 'none',
+              boxSizing: 'border-box',
             }}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+          />
+          {emailError && <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#ff4458' }}>{emailError}</p>}
+        </div>
 
-      {/* Form */}
-      <div>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          style={{
-            width: '100%',
-            padding: '12px',
-            backgroundColor: c.input,
-            color: c.text,
-            border: `1px solid ${c.border}`,
-            borderRadius: '6px',
-            fontSize: '13px',
-            marginBottom: '12px',
-            outline: 'none',
-            boxSizing: 'border-box',
-          }}
-        />
-
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          style={{
-            width: '100%',
-            padding: '12px',
-            backgroundColor: c.input,
-            color: c.text,
-            border: `1px solid ${c.border}`,
-            borderRadius: '6px',
-            fontSize: '13px',
-            marginBottom: '12px',
-            outline: 'none',
-            boxSizing: 'border-box',
-          }}
-        />
+        <div>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => handlePasswordChange(e.target.value)}
+            placeholder="Password"
+            style={{
+              width: '100%',
+              padding: '12px',
+              backgroundColor: c.input,
+              color: c.text,
+              border: `1px solid ${passwordError ? '#ff4458' : c.border}`,
+              borderRadius: '4px',
+              fontSize: '13px',
+              outline: 'none',
+              boxSizing: 'border-box',
+            }}
+          />
+          {passwordError && <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: '#ff4458' }}>{passwordError}</p>}
+        </div>
 
         {tab === 'signup' && (
           <input
@@ -172,37 +229,36 @@ export default function Auth({ c, i18n }: AuthProps) {
               backgroundColor: c.input,
               color: c.text,
               border: `1px solid ${c.border}`,
-              borderRadius: '6px',
+              borderRadius: '4px',
               fontSize: '13px',
-              marginBottom: '12px',
               outline: 'none',
               boxSizing: 'border-box',
             }}
           />
         )}
 
-        {error && <p style={{ margin: '12px 0', color: '#ff4458', fontSize: '12px' }}>{error}</p>}
+        {error && <p style={{ margin: '8px 0', color: '#ff4458', fontSize: '12px' }}>{error}</p>}
 
         <button
-          onClick={tab === 'login' ? handleLogin : handleSignup}
-          disabled={isLoading}
+          type="submit"
+          disabled={isDisabled}
           style={{
             width: '100%',
             padding: '12px',
             background: gradients.pink,
             color: '#fff',
             border: 'none',
-            borderRadius: '6px',
+            borderRadius: '4px',
             fontWeight: '600',
             fontSize: '13px',
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            opacity: isLoading ? 0.5 : 1,
-            marginTop: '12px',
+            cursor: isDisabled ? 'not-allowed' : 'pointer',
+            opacity: isDisabled ? 0.5 : 1,
+            marginTop: '8px',
           }}
         >
           {isLoading ? 'Loading...' : (tab === 'login' ? 'Log In' : 'Sign Up')}
         </button>
-      </div>
+      </form>
     </div>
   );
 }
