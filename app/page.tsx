@@ -3,25 +3,80 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, User } from 'firebase/auth';
 import { auth, database } from '@/lib/firebase';
-import { ref, get, push, set, remove, update } from 'firebase/database';
+import { ref, get, push, set, remove } from 'firebase/database';
 
 interface Post {
   id: string;
   userId: string;
   userName: string;
   content: string;
-  type: 'text' | 'question' | 'link' | 'poll' | 'story';
   timestamp: number;
   likes: number;
-  comments: number;
 }
+
+const i18n = {
+  en: {
+    home: 'Home',
+    search: 'Search',
+    messages: 'Messages',
+    profile: 'Profile',
+    login: 'Log In',
+    signup: 'Sign Up',
+    email: 'Email',
+    password: 'Password',
+    logout: 'Log Out',
+    posts: 'Posts',
+    following: 'Following',
+    followers: 'Followers',
+    follow: 'Follow',
+    following_label: 'Following',
+    post: 'Post',
+    searchUsers: 'Search',
+    whatsHappening: "What's on your mind?",
+    settings: 'Settings',
+    theme: 'Theme',
+    language: 'Language',
+    dark: 'Dark',
+    light: 'Light',
+    english: 'English',
+    japanese: '日本語',
+  },
+  ja: {
+    home: 'ホーム',
+    search: '検索',
+    messages: 'メッセージ',
+    profile: 'プロフィール',
+    login: 'ログイン',
+    signup: 'サインアップ',
+    email: 'メールアドレス',
+    password: 'パスワード',
+    logout: 'ログアウト',
+    posts: '投稿',
+    following: 'フォロー中',
+    followers: 'フォロワー',
+    follow: 'フォロー',
+    following_label: 'フォロー中',
+    post: '投稿',
+    searchUsers: '検索',
+    whatsHappening: '何か思いついた?',
+    settings: '設定',
+    theme: 'テーマ',
+    language: '言語',
+    dark: 'ダーク',
+    light: 'ライト',
+    english: 'English',
+    japanese: '日本語',
+  },
+};
+
+type Lang = 'en' | 'ja';
+type Theme = 'dark' | 'light';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [page, setPage] = useState('home');
+  const [tab, setTab] = useState('home');
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState('');
-  const [postType, setPostType] = useState<'text' | 'question' | 'link' | 'poll' | 'story'>('text');
   const [users, setUsers] = useState<any[]>([]);
   const [following, setFollowing] = useState(new Set<string>());
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,16 +85,40 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
-  const [editMode, setEditMode] = useState(false);
-  const [bio, setBio] = useState('');
+  const [lang, setLang] = useState<Lang>('ja');
+  const [theme, setTheme] = useState<Theme>('dark');
+
+  const t = i18n[lang];
+
+  const colors = {
+    dark: {
+      bg: '#000',
+      text: '#fff',
+      border: '#222',
+      input: '#1a1a1a',
+      button: '#222',
+      accent: '#ff6b6b',
+    },
+    light: {
+      bg: '#fff',
+      text: '#000',
+      border: '#e5e5e5',
+      input: '#f5f5f5',
+      button: '#f0f0f0',
+      accent: '#e91e63',
+    },
+  };
+
+  const c = colors[theme];
 
   useEffect(() => {
+    const browserLang = navigator.language.startsWith('ja') ? 'ja' : 'en';
+    setLang(browserLang as Lang);
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         loadData(currentUser.uid);
-        setPage('home');
       }
     });
     return () => unsubscribe();
@@ -47,13 +126,6 @@ export default function App() {
 
   const loadData = async (uid: string) => {
     try {
-      const profileRef = ref(database, `users/${uid}`);
-      const profileSnapshot = await get(profileRef);
-      if (profileSnapshot.exists()) {
-        setProfile(profileSnapshot.val());
-        setBio(profileSnapshot.val().bio || '');
-      }
-
       const postsRef = ref(database, 'posts');
       const postsSnapshot = await get(postsRef);
       if (postsSnapshot.exists()) {
@@ -97,8 +169,6 @@ export default function App() {
         id: userCred.user.uid,
         email,
         name: email.split('@')[0],
-        bio: '',
-        createdAt: new Date().toISOString(),
       });
       setUser(userCred.user);
     } catch (error) {
@@ -115,13 +185,10 @@ export default function App() {
         userId: user.uid,
         userName: user.email?.split('@')[0] || 'User',
         content: newPost,
-        type: postType,
         timestamp: Date.now(),
         likes: 0,
-        comments: 0,
       });
       setNewPost('');
-      setPostType('text');
       await loadData(user.uid);
     } catch (error) {
       console.error('Error:', error);
@@ -129,22 +196,13 @@ export default function App() {
   };
 
   const handleDeletePost = async (postId: string) => {
+    if (!confirm('Delete this post?')) return;
     try {
       await remove(ref(database, `posts/${postId}`));
       setPosts(posts.filter(p => p.id !== postId));
     } catch (error) {
       console.error('Error:', error);
     }
-  };
-
-  const handleFollow = (userId: string) => {
-    const newFollowing = new Set(following);
-    if (newFollowing.has(userId)) {
-      newFollowing.delete(userId);
-    } else {
-      newFollowing.add(userId);
-    }
-    setFollowing(newFollowing);
   };
 
   const handleLike = (postId: string) => {
@@ -157,213 +215,204 @@ export default function App() {
     setLikedPosts(newLiked);
   };
 
-  const handleSaveProfile = async () => {
-    if (!user) return;
-    try {
-      await update(ref(database, `users/${user.uid}`), { bio });
-      setProfile({ ...profile, bio });
-      setEditMode(false);
-    } catch (error) {
-      console.error('Error:', error);
+  const handleFollow = (userId: string) => {
+    const newFollowing = new Set(following);
+    if (newFollowing.has(userId)) {
+      newFollowing.delete(userId);
+    } else {
+      newFollowing.add(userId);
     }
+    setFollowing(newFollowing);
   };
 
-  // LOGIN SCREEN
+  // LOGIN
   if (!user) {
     return (
-      <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: '#fff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', color: '#000' }}>
-        <div style={{ width: '100%' }}>
-          <h1 style={{ fontSize: '48px', fontWeight: '700', textAlign: 'center', marginBottom: '40px' }}>SafeSpace</h1>
-          
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" style={{ width: '100%', padding: '16px', marginBottom: '12px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '16px', backgroundColor: '#f5f5f5' }} />
-          
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" style={{ width: '100%', padding: '16px', marginBottom: '20px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '16px', backgroundColor: '#f5f5f5' }} />
-          
-          <button onClick={authMode === 'login' ? handleLogin : handleSignup} disabled={loading} style={{ width: '100%', padding: '16px', backgroundColor: '#e91e63', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '18px', fontWeight: '700', cursor: 'pointer', marginBottom: '16px' }}>
-            {loading ? 'Loading...' : (authMode === 'login' ? 'Log In' : 'Sign Up')}
+      <div style={{ backgroundColor: c.bg, color: c.text, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ width: '100%', maxWidth: '400px' }}>
+          <h1 style={{ fontSize: '48px', fontWeight: '700', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', marginBottom: '40px', margin: 0, marginBottom: '40px' }}>SafeSpace</h1>
+
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.email} style={{ width: '100%', padding: '12px', marginBottom: '12px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '8px', fontSize: '14px', outline: 'none' }} />
+
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t.password} style={{ width: '100%', padding: '12px', marginBottom: '20px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '8px', fontSize: '14px', outline: 'none' }} />
+
+          <button onClick={authMode === 'login' ? handleLogin : handleSignup} disabled={loading} style={{ width: '100%', padding: '12px', backgroundColor: c.accent, color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '700', cursor: 'pointer', marginBottom: '12px' }}>
+            {loading ? 'Loading...' : (authMode === 'login' ? t.login : t.signup)}
           </button>
-          
-          <button onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setEmail(''); setPassword(''); }} style={{ width: '100%', padding: '16px', backgroundColor: '#f0f0f0', color: '#000', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' }}>
-            {authMode === 'login' ? 'Create New Account' : 'Back to Login'}
+
+          <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} style={{ width: '100%', padding: '12px', backgroundColor: c.button, color: c.text, border: 'none', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}>
+            {authMode === 'login' ? t.signup : t.login}
           </button>
         </div>
       </div>
     );
   }
 
-  // HOME PAGE
-  if (page === 'home') {
+  // HOME
+  if (tab === 'home') {
     return (
-      <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: '#fff', minHeight: '100vh', paddingBottom: '70px', color: '#000' }}>
+      <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: c.bg, color: c.text, minHeight: '100vh', paddingBottom: '80px' }}>
         {/* Header */}
-        <div style={{ padding: '16px', borderBottom: '1px solid #e5e5e5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: '#fff', zIndex: 10 }}>
-          <h1 style={{ fontSize: '32px', fontWeight: '700', margin: 0 }}>Home</h1>
-          <button onClick={() => setPage('settings')} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>⚙️</button>
+        <div style={{ padding: '16px', borderBottom: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: c.bg, zIndex: 100 }}>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', margin: 0, background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>SafeSpace</h1>
+          <button onClick={() => setTab('settings')} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: c.text }}>⚙</button>
         </div>
 
         {/* Post Creator */}
-        <div style={{ padding: '16px', borderBottom: '1px solid #e5e5e5' }}>
-          <div style={{ marginBottom: '12px', display: 'flex', gap: '8px' }}>
-            {(['text', 'question', 'link', 'poll', 'story'] as const).map((type) => (
-              <button key={type} onClick={() => setPostType(type)} style={{ flex: 1, padding: '10px', backgroundColor: postType === type ? '#e91e63' : '#f0f0f0', color: postType === type ? '#fff' : '#000', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
-                {type === 'text' ? 'Text' : type === 'question' ? '?' : type === 'link' ? 'Link' : type === 'poll' ? 'Poll' : 'Story'}
-              </button>
-            ))}
+        <div style={{ padding: '16px', borderBottom: `1px solid ${c.border}` }}>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)', flexShrink: 0 }} />
+            <textarea value={newPost} onChange={(e) => setNewPost(e.target.value)} placeholder={t.whatsHappening} style={{ flex: 1, padding: '12px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '20px', fontSize: '14px', fontFamily: 'inherit', resize: 'none', outline: 'none' }} rows={3} />
           </div>
-
-          <textarea value={newPost} onChange={(e) => setNewPost(e.target.value)} placeholder={postType === 'question' ? 'Ask a question...' : postType === 'link' ? 'Share a link...' : postType === 'poll' ? 'Create a poll...' : 'What are you thinking?'} style={{ width: '100%', border: '1px solid #ddd', borderRadius: '8px', padding: '16px', fontSize: '16px', fontFamily: 'inherit', resize: 'none', outline: 'none', backgroundColor: '#f9f9f9', color: '#000' }} rows={4} />
-
-          <button onClick={handleCreatePost} disabled={!newPost.trim()} style={{ width: '100%', marginTop: '12px', padding: '16px', backgroundColor: newPost.trim() ? '#e91e63' : '#ddd', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '18px', fontWeight: '700', cursor: newPost.trim() ? 'pointer' : 'default' }}>
-            Post
+          <button onClick={handleCreatePost} disabled={!newPost.trim()} style={{ marginLeft: 'auto', display: 'block', padding: '8px 24px', backgroundColor: c.accent, color: '#fff', border: 'none', borderRadius: '20px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', opacity: newPost.trim() ? 1 : 0.5 }}>
+            {t.post}
           </button>
         </div>
 
-        {/* Posts Feed */}
+        {/* Posts */}
         <div>
           {posts.map((post) => (
-            <div key={post.id} style={{ padding: '16px', borderBottom: '1px solid #e5e5e5' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>{post.userName}</p>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#666' }}>@{post.userId?.slice(0, 8)}</p>
+            <div key={post.id} style={{ padding: '16px', borderBottom: `1px solid ${c.border}`, display: 'flex', gap: '12px' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: '700', fontSize: '14px' }}>{post.userName}</p>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#999' }}>{new Date(post.timestamp).toLocaleDateString(lang === 'ja' ? 'ja-JP' : 'en-US')}</p>
+                  </div>
+                  {post.userId === user.uid && (
+                    <button onClick={() => handleDeletePost(post.id)} style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', fontSize: '14px' }}>x</button>
+                  )}
                 </div>
-                {post.userId === user.uid && (
-                  <button onClick={() => handleDeletePost(post.id)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✕</button>
-                )}
-              </div>
-
-              <div style={{ backgroundColor: '#f9f9f9', padding: '12px', borderRadius: '8px', marginBottom: '12px' }}>
-                <p style={{ margin: 0, fontSize: '16px', lineHeight: 1.6 }}>{post.content}</p>
-              </div>
-
-              <div style={{ display: 'flex', gap: '20px', fontSize: '16px' }}>
-                <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}>{likedPosts.has(post.id) ? '❤️' : '🤍'} {post.likes}</button>
-                <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}>💬 {post.comments}</button>
+                <p style={{ margin: '8px 0', fontSize: '14px', lineHeight: 1.5 }}>{post.content}</p>
+                <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#999' }}>
+                  <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', color: likedPosts.has(post.id) ? c.accent : '#999', cursor: 'pointer', fontSize: '12px' }}>
+                    {likedPosts.has(post.id) ? '❤️' : '🤍'} {post.likes}
+                  </button>
+                  <span>💬 0</span>
+                </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Navigation */}
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTop: '1px solid #e5e5e5', display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
-          <button onClick={() => setPage('home')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px' }}>🏠</button>
-          <button onClick={() => setPage('explore')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px' }}>🔍</button>
-          <button onClick={() => setPage('profile')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px' }}>👤</button>
+        {/* Nav */}
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: c.bg, borderTop: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
+          {[{ key: 'home', icon: '🏠' }, { key: 'search', icon: '🔍' }, { key: 'messages', icon: '💬' }, { key: 'profile', icon: '👤' }].map(({ key, icon }) => (
+            <button key={key} onClick={() => setTab(key)} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', opacity: tab === key ? 1 : 0.5 }}>
+              {icon}
+            </button>
+          ))}
         </div>
       </div>
     );
   }
 
-  // EXPLORE PAGE
-  if (page === 'explore') {
-    const filteredUsers = users.filter(u => (u.email?.toLowerCase().includes(searchQuery.toLowerCase())));
+  // SEARCH
+  if (tab === 'search') {
+    const filtered = users.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()));
     return (
-      <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: '#fff', minHeight: '100vh', paddingBottom: '70px', color: '#000' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid #e5e5e5' }}>
-          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search users..." style={{ width: '100%', padding: '16px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '16px', backgroundColor: '#f5f5f5' }} />
+      <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: c.bg, color: c.text, minHeight: '100vh', paddingBottom: '80px' }}>
+        <div style={{ padding: '16px', borderBottom: `1px solid ${c.border}`, position: 'sticky', top: 0, backgroundColor: c.bg, zIndex: 100 }}>
+          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t.searchUsers} style={{ width: '100%', padding: '12px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '20px', fontSize: '14px', outline: 'none' }} />
         </div>
 
         <div>
-          {searchQuery && filteredUsers.map((u) => (
-            <div key={u.id} style={{ padding: '16px', borderBottom: '1px solid #e5e5e5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <p style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>{u.name}</p>
-                <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#666' }}>{u.bio || 'No bio'}</p>
+          {filtered.map((u) => (
+            <div key={u.id} style={{ padding: '16px', borderBottom: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)' }} />
+                <div>
+                  <p style={{ margin: 0, fontWeight: '700', fontSize: '14px' }}>{u.name}</p>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#999' }}>{u.email}</p>
+                </div>
               </div>
-              <button onClick={() => handleFollow(u.id)} style={{ padding: '10px 20px', backgroundColor: following.has(u.id) ? '#f0f0f0' : '#e91e63', color: following.has(u.id) ? '#000' : '#fff', border: 'none', borderRadius: '20px', fontSize: '16px', fontWeight: '700', cursor: 'pointer' }}>
-                {following.has(u.id) ? 'Following' : 'Follow'}
+              <button onClick={() => handleFollow(u.id)} style={{ padding: '6px 16px', backgroundColor: following.has(u.id) ? c.button : c.accent, color: following.has(u.id) ? c.text : '#fff', border: 'none', borderRadius: '20px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+                {following.has(u.id) ? t.following_label : t.follow}
               </button>
             </div>
           ))}
         </div>
 
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTop: '1px solid #e5e5e5', display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
-          <button onClick={() => setPage('home')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px' }}>🏠</button>
-          <button onClick={() => setPage('explore')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px' }}>🔍</button>
-          <button onClick={() => setPage('profile')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px' }}>👤</button>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: c.bg, borderTop: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
+          {[{ key: 'home', icon: '🏠' }, { key: 'search', icon: '🔍' }, { key: 'messages', icon: '💬' }, { key: 'profile', icon: '👤' }].map(({ key, icon }) => (
+            <button key={key} onClick={() => setTab(key)} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', opacity: tab === key ? 1 : 0.5 }}>
+              {icon}
+            </button>
+          ))}
         </div>
       </div>
     );
   }
 
-  // PROFILE PAGE
-  if (page === 'profile') {
+  // PROFILE
+  if (tab === 'profile') {
     return (
-      <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: '#fff', minHeight: '100vh', paddingBottom: '70px', color: '#000' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid #e5e5e5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: '700', margin: 0 }}>Profile</h1>
-          <button onClick={() => setEditMode(!editMode)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>✏️</button>
+      <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: c.bg, color: c.text, minHeight: '100vh', paddingBottom: '80px' }}>
+        <div style={{ padding: '16px', textAlign: 'center', borderBottom: `1px solid ${c.border}` }}>
+          <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)', margin: '0 auto 16px' }} />
+          <p style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>{user?.email?.split('@')[0]}</p>
+          <p style={{ margin: '4px 0', fontSize: '12px', color: '#999' }}>{user?.email}</p>
+        </div>
+
+        <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-around', borderBottom: `1px solid ${c.border}` }}>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>{posts.filter(p => p.userId === user?.uid).length}</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#999' }}>{t.posts}</p>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>{following.size}</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#999' }}>{t.following}</p>
+          </div>
         </div>
 
         <div style={{ padding: '16px' }}>
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{ width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#e91e63', margin: '0 auto 16px' }} />
-            <p style={{ margin: 0, fontSize: '24px', fontWeight: '700' }}>{user?.email?.split('@')[0]}</p>
-            <p style={{ margin: '4px 0', fontSize: '16px', color: '#666' }}>{user?.email}</p>
-          </div>
-
-          {editMode ? (
-            <div style={{ marginBottom: '24px', backgroundColor: '#f9f9f9', padding: '16px', borderRadius: '8px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', marginBottom: '8px' }}>Bio</label>
-              <textarea value={bio} onChange={(e) => setBio(e.target.value)} style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '14px', fontFamily: 'inherit', resize: 'none', outline: 'none', color: '#000' }} rows={3} />
-              <button onClick={handleSaveProfile} style={{ width: '100%', marginTop: '12px', padding: '12px', backgroundColor: '#e91e63', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '16px', fontWeight: '700', cursor: 'pointer' }}>
-                Save
-              </button>
-            </div>
-          ) : (
-            <div style={{ marginBottom: '24px', backgroundColor: '#f9f9f9', padding: '16px', borderRadius: '8px' }}>
-              <p style={{ margin: 0, fontSize: '16px' }}>{bio || 'No bio yet'}</p>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #e5e5e5' }}>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: '24px', fontWeight: '700' }}>{posts.filter(p => p.userId === user?.uid).length}</p>
-              <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#666' }}>Posts</p>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: '24px', fontWeight: '700' }}>{following.size}</p>
-              <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#666' }}>Following</p>
-            </div>
-          </div>
-
-          <button onClick={async () => { await signOut(auth); setUser(null); setEmail(''); setPassword(''); }} style={{ width: '100%', padding: '16px', backgroundColor: '#f0f0f0', border: 'none', borderRadius: '8px', fontSize: '18px', fontWeight: '700', cursor: 'pointer' }}>
-            Log Out
+          <button onClick={async () => { await signOut(auth); setUser(null); }} style={{ width: '100%', padding: '12px', backgroundColor: c.button, color: c.text, border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+            {t.logout}
           </button>
         </div>
 
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTop: '1px solid #e5e5e5', display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
-          <button onClick={() => setPage('home')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px' }}>🏠</button>
-          <button onClick={() => setPage('explore')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px' }}>🔍</button>
-          <button onClick={() => setPage('profile')} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px' }}>👤</button>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: c.bg, borderTop: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
+          {[{ key: 'home', icon: '🏠' }, { key: 'search', icon: '🔍' }, { key: 'messages', icon: '💬' }, { key: 'profile', icon: '👤' }].map(({ key, icon }) => (
+            <button key={key} onClick={() => setTab(key)} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', opacity: tab === key ? 1 : 0.5 }}>
+              {icon}
+            </button>
+          ))}
         </div>
       </div>
     );
   }
 
-  // SETTINGS PAGE
-  if (page === 'settings') {
+  // SETTINGS
+  if (tab === 'settings') {
     return (
-      <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: '#fff', minHeight: '100vh', paddingBottom: '70px', color: '#000' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid #e5e5e5' }}>
-          <button onClick={() => setPage('home')} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', marginBottom: '16px' }}>←</button>
-          <h1 style={{ fontSize: '32px', fontWeight: '700', margin: 0 }}>Settings</h1>
+      <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: c.bg, color: c.text, minHeight: '100vh', paddingBottom: '80px' }}>
+        <div style={{ padding: '16px', borderBottom: `1px solid ${c.border}` }}>
+          <button onClick={() => setTab('home')} style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', fontSize: '16px', marginBottom: '16px' }}>← Back</button>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', margin: 0 }}>{t.settings}</h1>
         </div>
 
         <div style={{ padding: '16px' }}>
-          <div style={{ marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid #e5e5e5' }}>
-            <p style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Privacy</p>
-            <button style={{ width: '100%', padding: '12px', backgroundColor: '#f0f0f0', border: 'none', borderRadius: '8px', fontSize: '16px', textAlign: 'left', cursor: 'pointer' }}>Private Account</button>
+          <div style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: `1px solid ${c.border}` }}>
+            <p style={{ fontSize: '16px', fontWeight: '700', marginBottom: '12px' }}>{t.theme}</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(['dark', 'light'] as const).map((t_) => (
+                <button key={t_} onClick={() => setTheme(t_)} style={{ flex: 1, padding: '12px', backgroundColor: theme === t_ ? c.accent : c.button, color: theme === t_ ? '#fff' : c.text, border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+                  {t_ === 'dark' ? t.dark : t.light}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div style={{ marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid #e5e5e5' }}>
-            <p style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Notifications</p>
-            <button style={{ width: '100%', padding: '12px', backgroundColor: '#f0f0f0', border: 'none', borderRadius: '8px', fontSize: '16px', textAlign: 'left', cursor: 'pointer' }}>Push Notifications</button>
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <p style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>About</p>
-            <p style={{ fontSize: '14px', color: '#666' }}>SafeSpace v1.0</p>
+          <div style={{ marginBottom: '24px' }}>
+            <p style={{ fontSize: '16px', fontWeight: '700', marginBottom: '12px' }}>{t.language}</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(['ja', 'en'] as const).map((l) => (
+                <button key={l} onClick={() => setLang(l)} style={{ flex: 1, padding: '12px', backgroundColor: lang === l ? c.accent : c.button, color: lang === l ? '#fff' : c.text, border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+                  {l === 'ja' ? t.japanese : t.english}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
