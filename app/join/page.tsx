@@ -1,130 +1,120 @@
-"use client";
-import { useState } from "react";
+'use client';
 
-export default function Join() {
-  const [step, setStep] = useState<"register" | "verify">("register");
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
+import { useState } from 'react';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, database } from '@/lib/firebase';
+import { ref, set } from 'firebase/database';
+import { useRouter } from 'next/navigation';
+
+export default function JoinPage() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
+  const router = useRouter();
 
-  async function handleRegister() {
-    if (!email || !username || !password) {
-      setError("All fields required");
-      return;
-    }
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
-    setError("");
-    const res = await fetch("/api/auth/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    setLoading(false);
-    if (res.ok) {
-      setStep("verify");
-    } else {
-      setError("Something went wrong");
-    }
-  }
+    setError('');
 
-  async function handleVerify() {
-    if (!code) return;
-    setLoading(true);
-    setError("");
-    const res = await fetch("/api/auth/verify", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code }),
-    });
-    setLoading(false);
-    if (res.ok) {
-      window.location.href = "/feed";
-    } else {
-      const data = await res.json();
-      setError(data.error || "Invalid code");
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      await set(ref(database, `users/${user.uid}`), {
+        id: user.uid,
+        email,
+        name,
+        createdAt: new Date().toISOString(),
+      });
+
+      router.push('/feed');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6 bg-white">
-      <div className="w-full max-w-sm">
-        <h2 className="text-2xl font-medium mb-1 text-center text-gray-900">
-          {step === "register" ? "Create account" : "Check your email"}
-        </h2>
-        <p className="text-gray-400 text-sm text-center mb-8">
-          {step === "register"
-            ? "Women only"
-            : `We sent a code to ${email}`}
-        </p>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
+      <div style={{ textAlign: 'center', maxWidth: '400px', width: '100%', padding: '20px' }}>
+        <h1 style={{ fontSize: '24px', marginBottom: '30px', color: '#333' }}>アカウントを作成する</h1>
+        <p style={{ fontSize: '14px', color: '#999', marginBottom: '20px' }}>女性限定</p>
 
         {error && (
-          <p className="text-red-500 text-sm text-center mb-4">{error}</p>
-        )}
-
-        {step === "register" ? (
-          <div className="flex flex-col gap-3">
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 rounded-lg text-gray-900 placeholder-gray-400 border border-gray-200 focus:outline-none focus:border-gray-400 text-sm"
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 rounded-lg text-gray-900 placeholder-gray-400 border border-gray-200 focus:outline-none focus:border-gray-400 text-sm"
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 rounded-lg text-gray-900 placeholder-gray-400 border border-gray-200 focus:outline-none focus:border-gray-400 text-sm"
-            />
-            <button
-              onClick={handleRegister}
-              disabled={loading}
-              className="w-full px-6 py-3 bg-gray-900 rounded-lg text-white font-medium hover:bg-gray-700 transition text-sm mt-2 disabled:opacity-50"
-            >
-              {loading ? "Sending..." : "Continue"}
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <input
-              type="text"
-              placeholder="6-digit code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              maxLength={6}
-              className="w-full px-4 py-3 bg-gray-50 rounded-lg text-gray-900 placeholder-gray-400 border border-gray-200 focus:outline-none focus:border-gray-400 text-sm text-center tracking-widest text-lg"
-            />
-            <button
-              onClick={handleVerify}
-              disabled={loading}
-              className="w-full px-6 py-3 bg-gray-900 rounded-lg text-white font-medium hover:bg-gray-700 transition text-sm disabled:opacity-50"
-            >
-              {loading ? "Verifying..." : "Verify"}
-            </button>
-            <button
-              onClick={() => setStep("register")}
-              className="text-gray-400 text-sm text-center hover:text-gray-600"
-            >
-              Back
-            </button>
+          <div style={{ color: '#d32f2f', marginBottom: '15px', fontSize: '14px' }}>
+            {error}
           </div>
         )}
 
-        <p className="text-gray-300 text-xs text-center mt-8">
-          By joining you confirm you are a woman.
+        <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <input
+            type="text"
+            placeholder="名前"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            style={{
+              padding: '12px',
+              border: '1px solid #ddd',
+              borderRadius: '8px',
+              fontSize: '14px',
+            }}
+          />
+
+          <input
+            type="email"
+            placeholder="メールアドレス"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{
+              padding: '12px',
+              border: '1px solid #ddd',
+              borderRadius: '8px',
+              fontSize: '14px',
+            }}
+          />
+
+          <input
+            type="password"
+            placeholder="パスワード"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{
+              padding: '12px',
+              border: '1px solid #ddd',
+              borderRadius: '8px',
+              fontSize: '14px',
+            }}
+          />
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              padding: '12px',
+              backgroundColor: '#e91e63',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              cursor: 'pointer',
+              marginTop: '10px',
+            }}
+          >
+            {loading ? '登録中...' : '続く'}
+          </button>
+        </form>
+
+        <p style={{ fontSize: '12px', color: '#999', marginTop: '20px' }}>
+          ご登録いただくことで、あなたが女性であることを確認したことになります。
         </p>
       </div>
-    </main>
+    </div>
   );
 }
