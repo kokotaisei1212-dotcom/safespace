@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { getAuth } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { database } from '@/lib/firebase';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, update } from 'firebase/database';
 
 interface Post {
   id: string;
@@ -13,6 +13,7 @@ interface Post {
   content: string;
   likes: number;
   createdAt: string;
+  likedBy?: { [key: string]: boolean };
 }
 
 export default function FeedPage() {
@@ -20,6 +21,7 @@ export default function FeedPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const router = useRouter();
   const auth = getAuth();
   const user = auth.currentUser;
@@ -71,89 +73,154 @@ export default function FeedPage() {
     }
   };
 
+  const handleLike = async (postId: string) => {
+    if (!user) return;
+
+    const newLikedPosts = new Set(likedPosts);
+    if (newLikedPosts.has(postId)) {
+      newLikedPosts.delete(postId);
+    } else {
+      newLikedPosts.add(postId);
+    }
+    setLikedPosts(newLikedPosts);
+
+    // Firebase を更新
+    try {
+      const postRef = ref(database, `posts/${postId}`);
+      const isLiked = newLikedPosts.has(postId);
+      await update(postRef, {
+        likes: isLiked ? (posts.find(p => p.id === postId)?.likes || 0) + 1 : Math.max(0, (posts.find(p => p.id === postId)?.likes || 0) - 1),
+      });
+    } catch (err) {
+      console.error('Like failed:', err);
+    }
+  };
+
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#fff' }}>
-      <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
-        <h1 style={{ fontSize: '24px', color: '#000', marginBottom: '20px' }}>セーフスペース</h1>
+    <div style={{ backgroundColor: '#fff', minHeight: '100vh' }}>
+      {/* ヘッダー */}
+      <div style={{ 
+        borderBottom: '1px solid #e5e5e5', 
+        padding: '16px 0', 
+        position: 'sticky', 
+        top: 0, 
+        backgroundColor: '#fff',
+        zIndex: 100
+      }}>
+        <div style={{ maxWidth: '600px', margin: '0 auto', paddingLeft: '16px', paddingRight: '16px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#000', margin: 0 }}>セーフスペース</h1>
+        </div>
+      </div>
 
-        {/* 投稿フォーム */}
-        <div style={{ backgroundColor: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
-          <form onSubmit={handlePost} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <textarea
-              placeholder="何か言いたいことはありますか？"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              style={{
-                padding: '12px',
-                border: '1px solid #ddd',
-                borderRadius: '8px',
-                fontSize: '14px',
-                color: '#000',
-                minHeight: '80px',
-                fontFamily: 'inherit',
-              }}
-            />
-
-            {error && <div style={{ color: '#d32f2f', fontSize: '12px' }}>{error}</div>}
-
-            <button
-              type="submit"
-              disabled={loading || !content.trim()}
-              style={{
-                padding: '10px',
-                backgroundColor: '#e91e63',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                cursor: 'pointer',
-              }}
-            >
-              {loading ? '投稿中...' : '投稿'}
-            </button>
+      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+        {/* 投稿作成フォーム */}
+        <div style={{ borderBottom: '1px solid #e5e5e5', padding: '16px' }}>
+          <form onSubmit={handlePost} style={{ display: 'flex', gap: '16px' }}>
+            <div style={{ 
+              width: '40px', 
+              height: '40px', 
+              borderRadius: '50%', 
+              backgroundColor: '#e91e63',
+              flexShrink: 0
+            }} />
+            <div style={{ flex: 1 }}>
+              <textarea
+                placeholder="何を思いますか？"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: 'none',
+                  fontSize: '16px',
+                  color: '#000',
+                  minHeight: '40px',
+                  fontFamily: 'inherit',
+                  backgroundColor: '#f0f0f0',
+                  borderRadius: '20px',
+                  resize: 'vertical',
+                }}
+              />
+              {error && <div style={{ color: '#d32f2f', fontSize: '12px', marginTop: '8px' }}>{error}</div>}
+              <button
+                type="submit"
+                disabled={loading || !content.trim()}
+                style={{
+                  marginTop: '12px',
+                  padding: '8px 20px',
+                  backgroundColor: '#e91e63',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '20px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  opacity: loading || !content.trim() ? 0.5 : 1,
+                }}
+              >
+                {loading ? '投稿中...' : '投稿'}
+              </button>
+            </div>
           </form>
         </div>
 
-        {/* 投稿一覧 */}
-        <div>
-          {posts.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#999', marginTop: '40px' }}>
-              まだ投稿がありません。最初の投稿者になりましょう！
-            </p>
-          ) : (
-            posts.map((post) => (
-              <div
-                key={post.id}
-                style={{
-                  backgroundColor: '#f9f9f9',
-                  padding: '15px',
-                  borderRadius: '8px',
-                  marginBottom: '15px',
-                  borderLeft: '4px solid #e91e63',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <strong style={{ color: '#000' }}>{post.userName}</strong>
-                  <small style={{ color: '#999' }}>{new Date(post.createdAt).toLocaleDateString()}</small>
+        {/* フィード */}
+        {posts.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>
+            <p style={{ fontSize: '16px' }}>投稿がありません</p>
+            <p style={{ fontSize: '14px' }}>最初の投稿者になりましょう！</p>
+          </div>
+        ) : (
+          posts.map((post) => (
+            <div key={post.id} style={{ borderBottom: '1px solid #e5e5e5', padding: '16px' }}>
+              {/* 投稿ヘッダー */}
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ 
+                    width: '32px', 
+                    height: '32px', 
+                    borderRadius: '50%', 
+                    backgroundColor: '#e91e63'
+                  }} />
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#000' }}>{post.userName}</div>
+                    <div style={{ fontSize: '12px', color: '#999' }}>
+                      {new Date(post.createdAt).toLocaleDateString('ja-JP')}
+                    </div>
+                  </div>
                 </div>
-                <p style={{ color: '#333', marginBottom: '10px', whiteSpace: 'pre-wrap' }}>{post.content}</p>
+                <div style={{ fontSize: '20px', cursor: 'pointer' }}>⋯</div>
+              </div>
+
+              {/* 投稿内容 */}
+              <div style={{ marginBottom: '12px', fontSize: '14px', color: '#000', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
+                {post.content}
+              </div>
+
+              {/* アクション */}
+              <div style={{ display: 'flex', gap: '16px', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #e5e5e5' }}>
                 <button
+                  onClick={() => handleLike(post.id)}
                   style={{
-                    padding: '5px 10px',
-                    backgroundColor: '#fff',
-                    border: '1px solid #e91e63',
-                    color: '#e91e63',
-                    borderRadius: '4px',
-                    fontSize: '12px',
+                    background: 'none',
+                    border: 'none',
                     cursor: 'pointer',
+                    fontSize: '18px',
+                    padding: 0,
                   }}
                 >
-                  ❤️ {post.likes}
+                  {likedPosts.has(post.id) ? '❤️' : '🤍'} {post.likes}
+                </button>
+                <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: 0 }}>
+                  💬
+                </button>
+                <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: 0 }}>
+                  ↗️
                 </button>
               </div>
-            ))
-          )}
-        </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
