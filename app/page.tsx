@@ -14,6 +14,7 @@ interface Post {
   likes: number;
   comments?: { [key: string]: any };
   createdAt: string;
+  translatedContent?: string;
 }
 
 interface UserProfile {
@@ -28,6 +29,7 @@ interface Message {
   fromUserName: string;
   content: string;
   createdAt: string;
+  translatedContent?: string;
 }
 
 export default function App() {
@@ -48,9 +50,29 @@ export default function App() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState('');
+  const [selectedLanguage, setSelectedLanguage] = useState('ja');
+  const [translatingPostId, setTranslatingPostId] = useState<string | null>(null);
   const router = useRouter();
   const auth = getAuth();
   const user = auth.currentUser;
+
+  const languages = [
+    { code: 'ja', name: '日本語' },
+    { code: 'en', name: 'English' },
+    { code: 'zh-CN', name: '中文（簡体字）' },
+    { code: 'ko', name: '한국어' },
+    { code: 'es', name: 'Español' },
+    { code: 'fr', name: 'Français' },
+    { code: 'de', name: 'Deutsch' },
+    { code: 'it', name: 'Italiano' },
+    { code: 'pt', name: 'Português' },
+    { code: 'ru', name: 'Русский' },
+    { code: 'ar', name: 'العربية' },
+    { code: 'th', name: 'ไทย' },
+    { code: 'vi', name: 'Tiếng Việt' },
+    { code: 'id', name: 'Bahasa Indonesia' },
+    { code: 'hi', name: 'हिन्दी' },
+  ];
 
   useEffect(() => {
     if (!user) {
@@ -102,7 +124,6 @@ export default function App() {
     };
   }, [user, router]);
 
-  // メッセージをリアルタイムで取得
   useEffect(() => {
     if (!selectedUserId || !user) return;
 
@@ -121,6 +142,37 @@ export default function App() {
 
     return () => unsubscribe();
   }, [selectedUserId, user]);
+
+  const handleTranslate = async (postId: string, content: string) => {
+    if (selectedLanguage === 'ja') return;
+
+    setTranslatingPostId(postId);
+
+    try {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: content,
+          targetLanguage: selectedLanguage,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setPosts(posts.map(p => 
+          p.id === postId 
+            ? { ...p, translatedContent: data.translatedText }
+            : p
+        ));
+      }
+    } catch (err) {
+      console.error('翻訳失敗:', err);
+    } finally {
+      setTranslatingPostId(null);
+    }
+  };
 
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -274,6 +326,14 @@ export default function App() {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#000', color: '#fff' }}>
         <div style={{ borderBottom: '1px solid #262626', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 style={{ fontSize: '28px', fontWeight: '700', margin: 0, background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>SafeSpace</h1>
+          <select 
+            value={selectedLanguage}
+            onChange={(e) => setSelectedLanguage(e.target.value)}
+            style={{ padding: '8px 12px', backgroundColor: '#262626', color: '#fff', border: '1px solid #262626', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+            {languages.map(lang => (
+              <option key={lang.code} value={lang.code}>{lang.name}</option>
+            ))}
+          </select>
           <button onClick={handleLogout} style={{ padding: '8px 16px', backgroundColor: '#262626', color: '#fff', border: 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}>ログアウト</button>
         </div>
 
@@ -314,7 +374,18 @@ export default function App() {
                   )}
                 </div>
 
-                <p style={{ fontSize: '15px', color: '#fff', margin: '12px 0', lineHeight: '1.5', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{post.content}</p>
+                <p style={{ fontSize: '15px', color: '#fff', margin: '12px 0', lineHeight: '1.5', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {post.translatedContent ? post.translatedContent : post.content}
+                </p>
+
+                {selectedLanguage !== 'ja' && !post.translatedContent && (
+                  <button 
+                    onClick={() => handleTranslate(post.id, post.content)}
+                    disabled={translatingPostId === post.id}
+                    style={{ fontSize: '12px', color: '#f09433', background: 'none', border: 'none', cursor: 'pointer', marginTop: '8px' }}>
+                    {translatingPostId === post.id ? '翻訳中...' : '🌍 翻訳する'}
+                  </button>
+                )}
 
                 <div style={{ display: 'flex', gap: '20px', marginTop: '12px', color: '#999', paddingTop: '12px', borderTop: '1px solid #262626' }}>
                   <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px', color: likedPosts.has(post.id) ? '#f91880' : '#fff', padding: 0 }}>
@@ -345,17 +416,14 @@ export default function App() {
         </div>
 
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, borderTop: '1px solid #262626', backgroundColor: '#000', display: 'flex', justifyContent: 'space-around', padding: '12px 0' }}>
-          {[{ key: 'home', icon: '🏠', label: 'ホーム' }, { key: 'search', icon: '🔍', label: '検索' }, { key: 'messages', icon: '💬', label: 'DM' }, { key: 'profile', icon: '👤', label: 'プロフ' }].map(({ key, icon, label }) => (
-            <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', fontSize: '12px', color: tab === key ? '#f09433' : '#999', opacity: tab === key ? 1 : 0.6 }}>
-              <div style={{ fontSize: '20px' }}>{icon}</div>{label}
-            </button>
+          {[{ key: 'home', icon: '🏠' }, { key: 'search', icon: '🔍' }, { key: 'messages', icon: '💬' }, { key: 'profile', icon: '👤' }].map(({ key, icon }) => (
+            <button key={key} onClick={() => setTab(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '12px', fontSize: '20px', opacity: tab === key ? 1 : 0.6 }}>{icon}</button>
           ))}
         </div>
       </div>
     );
   }
 
-  // 検索タブ
   if (tab === 'search') {
     const filteredUsers = Object.entries(allUsers).filter(([id, u]: any) => id !== user?.uid && (u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || u.email?.toLowerCase().includes(searchQuery.toLowerCase()))).map(([id, u]: any) => ({ id, ...u }));
 
@@ -386,7 +454,6 @@ export default function App() {
     );
   }
 
-  // メッセージタブ
   if (tab === 'messages') {
     const userConversations = Object.entries(allUsers)
       .filter(([id]: any) => id !== user?.uid)
@@ -395,7 +462,7 @@ export default function App() {
     return (
       <div style={{ display: 'flex', height: '100vh', backgroundColor: '#000', color: '#fff', paddingBottom: '0' }}>
         <div style={{ width: '280px', borderRight: '1px solid #262626', overflowY: 'auto', display: 'flex', flexDirection: 'column', backgroundColor: '#000' }}>
-          <div style={{ padding: '16px', borderBottom: '1px solid #262626', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '16px', borderBottom: '1px solid #262626' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>メッセージ</h2>
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -408,7 +475,6 @@ export default function App() {
                   borderBottom: '1px solid #262626',
                   cursor: 'pointer',
                   backgroundColor: selectedUserId === u.id ? '#262626' : '#000',
-                  transition: 'background-color 0.2s',
                 }}>
                 <p style={{ fontSize: '14px', fontWeight: '600', margin: '0 0 4px 0' }}>{u.name || u.email?.split('@')[0]}</p>
                 <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>{u.email}</p>
@@ -418,34 +484,19 @@ export default function App() {
         </div>
 
         {selectedUserId ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ borderBottom: '1px solid #262626', padding: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
-                {allUsers[selectedUserId]?.name || allUsers[selectedUserId]?.email?.split('@')[0]}
-              </h3>
+              <h3 style={{ margin: 0 }}>{allUsers[selectedUserId]?.name || allUsers[selectedUserId]?.email?.split('@')[0]}</h3>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {messages.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#999' }}>メッセージを送信して会話を開始</p>
-              ) : (
-                messages.map((msg) => (
-                  <div key={msg.id} style={{ textAlign: msg.fromUserId === user?.uid ? 'right' : 'left' }}>
-                    <div style={{
-                      display: 'inline-block',
-                      maxWidth: '60%',
-                      padding: '10px 14px',
-                      borderRadius: '18px',
-                      backgroundColor: msg.fromUserId === user?.uid ? '#f09433' : '#262626',
-                      color: msg.fromUserId === user?.uid ? '#000' : '#fff',
-                      fontSize: '14px',
-                      wordBreak: 'break-word',
-                    }}>
-                      {msg.content}
-                    </div>
+              {messages.map((msg) => (
+                <div key={msg.id} style={{ textAlign: msg.fromUserId === user?.uid ? 'right' : 'left' }}>
+                  <div style={{ display: 'inline-block', maxWidth: '60%', padding: '10px 14px', borderRadius: '18px', backgroundColor: msg.fromUserId === user?.uid ? '#f09433' : '#262626', color: msg.fromUserId === user?.uid ? '#000' : '#fff', fontSize: '14px', wordBreak: 'break-word' }}>
+                    {msg.content}
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
 
             <div style={{ padding: '12px 16px', borderTop: '1px solid #262626', display: 'flex', gap: '8px' }}>
@@ -455,29 +506,9 @@ export default function App() {
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                style={{
-                  flex: 1,
-                  padding: '10px 14px',
-                  border: '1px solid #262626',
-                  borderRadius: '20px',
-                  fontSize: '14px',
-                  color: '#fff',
-                  backgroundColor: '#262626',
-                }}
+                style={{ flex: 1, padding: '10px 14px', border: '1px solid #262626', borderRadius: '20px', fontSize: '14px', color: '#fff', backgroundColor: '#262626' }}
               />
-              <button
-                onClick={handleSendMessage}
-                disabled={!messageText.trim()}
-                style={{
-                  padding: '10px 20px',
-                  background: 'linear-gradient(45deg, #f09433, #e6683c)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '20px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  opacity: !messageText.trim() ? 0.5 : 1,
-                }}>
+              <button onClick={handleSendMessage} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #f09433, #e6683c)', color: '#fff', border: 'none', borderRadius: '20px', cursor: 'pointer', fontWeight: '600' }}>
                 送信
               </button>
             </div>
@@ -497,13 +528,11 @@ export default function App() {
     );
   }
 
-  // プロフィールタブ
   if (tab === 'profile') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#000', color: '#fff', paddingBottom: '60px' }}>
-        <div style={{ borderBottom: '1px solid #262626', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ borderBottom: '1px solid #262626', padding: '12px 16px' }}>
           <h1 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>プロフィール</h1>
-          <button onClick={handleLogout} style={{ padding: '8px 16px', backgroundColor: '#262626', color: '#fff', border: 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer' }}>ログアウト</button>
         </div>
 
         <div style={{ background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743)', height: '150px' }} />
@@ -521,9 +550,8 @@ export default function App() {
             </div>
           </div>
 
-          <p style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {profile.name || user?.email}
-            {profile.identityVerified && '✅'}
+          <p style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0' }}>
+            {profile.name || user?.email} {profile.identityVerified && '✅'}
           </p>
           <p style={{ fontSize: '13px', color: '#999', margin: '0 0 16px 0' }}>{user?.email}</p>
 
@@ -545,7 +573,7 @@ export default function App() {
           {editing ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
               <input type="text" placeholder="名前" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} style={{ padding: '12px', border: '1px solid #262626', borderRadius: '8px', fontSize: '14px', color: '#fff', backgroundColor: '#262626' }} />
-              <textarea placeholder="自己紹介" value={profile.bio} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} style={{ padding: '12px', border: '1px solid #262626', borderRadius: '8px', fontSize: '14px', color: '#fff', backgroundColor: '#262626', minHeight: '80px', fontFamily: 'inherit' }} />
+              <textarea placeholder="自己紹介" value={profile.bio} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} style={{ padding: '12px', border: '1px solid #262626', borderRadius: '8px', fontSize: '14px', color: '#fff', backgroundColor: '#262626', minHeight: '80px' }} />
               <button onClick={handleSaveProfile} disabled={loading} style={{ padding: '10px 20px', background: 'linear-gradient(45deg, #f09433, #e6683c)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
                 {loading ? '保存中...' : '保存'}
               </button>
