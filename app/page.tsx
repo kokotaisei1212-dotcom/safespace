@@ -196,7 +196,7 @@ export default function App() {
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (!confirm('Delete this post?')) return;
+    if (!confirm('Delete?')) return;
     try {
       await remove(ref(database, `posts/${postId}`));
       setPosts(posts.filter(p => p.id !== postId));
@@ -225,12 +225,11 @@ export default function App() {
     setFollowing(newFollowing);
   };
 
-  // LOGIN
   if (!user) {
     return (
       <div style={{ backgroundColor: c.bg, color: c.text, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ width: '100%', maxWidth: '400px' }}>
-          <h1 style={{ fontSize: '48px', fontWeight: '700', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', marginBottom: '40px', margin: 0, marginBottom: '40px' }}>SafeSpace</h1>
+          <h1 style={{ fontSize: '48px', fontWeight: '700', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', margin: '0 0 40px 0' }}>SafeSpace</h1>
 
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.email} style={{ width: '100%', padding: '12px', marginBottom: '12px', backgroundColor: c.input, color: c.text, border: `1px solid ${c.border}`, borderRadius: '8px', fontSize: '14px', outline: 'none' }} />
 
@@ -248,17 +247,14 @@ export default function App() {
     );
   }
 
-  // HOME
   if (tab === 'home') {
     return (
       <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: c.bg, color: c.text, minHeight: '100vh', paddingBottom: '80px' }}>
-        {/* Header */}
         <div style={{ padding: '16px', borderBottom: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: c.bg, zIndex: 100 }}>
           <h1 style={{ fontSize: '28px', fontWeight: '700', margin: 0, background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>SafeSpace</h1>
           <button onClick={() => setTab('settings')} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: c.text }}>⚙</button>
         </div>
 
-        {/* Post Creator */}
         <div style={{ padding: '16px', borderBottom: `1px solid ${c.border}` }}>
           <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)', flexShrink: 0 }} />
@@ -269,7 +265,6 @@ export default function App() {
           </button>
         </div>
 
-        {/* Posts */}
         <div>
           {posts.map((post) => (
             <div key={post.id} style={{ padding: '16px', borderBottom: `1px solid ${c.border}`, display: 'flex', gap: '12px' }}>
@@ -278,7 +273,7 @@ export default function App() {
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div>
                     <p style={{ margin: 0, fontWeight: '700', fontSize: '14px' }}>{post.userName}</p>
-                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#999' }}>{new Date(post.timestamp).toLocaleDateString(lang === 'ja' ? 'ja-JP' : 'en-US')}</p>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#999' }}>{new Date(post.timestamp).toLocaleDateString()}</p>
                   </div>
                   {post.userId === user.uid && (
                     <button onClick={() => handleDeletePost(post.id)} style={{ background: 'none', border: 'none', color: c.text, cursor: 'pointer', fontSize: '14px' }}>x</button>
@@ -287,7 +282,7 @@ export default function App() {
                 <p style={{ margin: '8px 0', fontSize: '14px', lineHeight: 1.5 }}>{post.content}</p>
                 <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#999' }}>
                   <button onClick={() => handleLike(post.id)} style={{ background: 'none', border: 'none', color: likedPosts.has(post.id) ? c.accent : '#999', cursor: 'pointer', fontSize: '12px' }}>
-                    {likedPosts.has(post.id) ? '❤️' : '🤍'} {post.likes}
+                    ❤️ {post.likes}
                   </button>
                   <span>💬 0</span>
                 </div>
@@ -296,7 +291,6 @@ export default function App() {
           ))}
         </div>
 
-        {/* Nav */}
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: c.bg, borderTop: `1px solid ${c.border}`, display: 'flex', justifyContent: 'space-around', maxWidth: '500px', margin: '0 auto' }}>
           {[{ key: 'home', icon: '🏠' }, { key: 'search', icon: '🔍' }, { key: 'messages', icon: '💬' }, { key: 'profile', icon: '👤' }].map(({ key, icon }) => (
             <button key={key} onClick={() => setTab(key)} style={{ flex: 1, padding: '16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', opacity: tab === key ? 1 : 0.5 }}>
@@ -308,7 +302,6 @@ export default function App() {
     );
   }
 
-  // SEARCH
   if (tab === 'search') {
     const filtered = users.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()));
     return (
@@ -345,14 +338,13 @@ export default function App() {
     );
   }
 
-  // PROFILE
   if (tab === 'profile') {
     return (
       <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: c.bg, color: c.text, minHeight: '100vh', paddingBottom: '80px' }}>
         <div style={{ padding: '16px', textAlign: 'center', borderBottom: `1px solid ${c.border}` }}>
           <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8b8b 100%)', margin: '0 auto 16px' }} />
           <p style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>{user?.email?.split('@')[0]}</p>
-          <p style={{ margin: '4px 0', fontSize: '12px', color: '#999' }}>{user?.email}</p>
+          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#999' }}>{user?.email}</p>
         </div>
 
         <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-around', borderBottom: `1px solid ${c.border}` }}>
@@ -383,7 +375,6 @@ export default function App() {
     );
   }
 
-  // SETTINGS
   if (tab === 'settings') {
     return (
       <div style={{ maxWidth: '500px', margin: '0 auto', backgroundColor: c.bg, color: c.text, minHeight: '100vh', paddingBottom: '80px' }}>
@@ -396,9 +387,9 @@ export default function App() {
           <div style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: `1px solid ${c.border}` }}>
             <p style={{ fontSize: '16px', fontWeight: '700', marginBottom: '12px' }}>{t.theme}</p>
             <div style={{ display: 'flex', gap: '8px' }}>
-              {(['dark', 'light'] as const).map((t_) => (
-                <button key={t_} onClick={() => setTheme(t_)} style={{ flex: 1, padding: '12px', backgroundColor: theme === t_ ? c.accent : c.button, color: theme === t_ ? '#fff' : c.text, border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
-                  {t_ === 'dark' ? t.dark : t.light}
+              {(['dark', 'light'] as const).map((th) => (
+                <button key={th} onClick={() => setTheme(th)} style={{ flex: 1, padding: '12px', backgroundColor: theme === th ? c.accent : c.button, color: theme === th ? '#fff' : c.text, border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+                  {th === 'dark' ? t.dark : t.light}
                 </button>
               ))}
             </div>
@@ -407,9 +398,9 @@ export default function App() {
           <div style={{ marginBottom: '24px' }}>
             <p style={{ fontSize: '16px', fontWeight: '700', marginBottom: '12px' }}>{t.language}</p>
             <div style={{ display: 'flex', gap: '8px' }}>
-              {(['ja', 'en'] as const).map((l) => (
-                <button key={l} onClick={() => setLang(l)} style={{ flex: 1, padding: '12px', backgroundColor: lang === l ? c.accent : c.button, color: lang === l ? '#fff' : c.text, border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
-                  {l === 'ja' ? t.japanese : t.english}
+              {(['ja', 'en'] as const).map((la) => (
+                <button key={la} onClick={() => setLang(la)} style={{ flex: 1, padding: '12px', backgroundColor: lang === la ? c.accent : c.button, color: lang === la ? '#fff' : c.text, border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+                  {la === 'ja' ? t.japanese : t.english}
                 </button>
               ))}
             </div>
@@ -418,4 +409,6 @@ export default function App() {
       </div>
     );
   }
+
+  return null;
 }
