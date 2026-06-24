@@ -20,6 +20,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [stats, setStats] = useState({ posts: 0, followers: 0, following: 0 });
+  const [tab, setTab] = useState('posts');
   const router = useRouter();
   const auth = getAuth();
   const user = auth.currentUser;
@@ -37,7 +38,6 @@ export default function ProfilePage() {
     if (!user) return;
 
     try {
-      // プロフィール取得
       const userRef = ref(database, `users/${user.uid}`);
       const snapshot = await get(userRef);
       if (snapshot.exists()) {
@@ -56,7 +56,7 @@ export default function ProfilePage() {
         });
       }
     } catch (err) {
-      console.error('Failed to load profile:', err);
+      console.error('プロフィール読み込み失敗:', err);
     }
   };
 
@@ -85,37 +85,67 @@ export default function ProfilePage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#fff', paddingBottom: '80px' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#000', color: '#fff', paddingBottom: '80px' }}>
       {/* ヘッダー */}
-      <div style={{ borderBottom: '1px solid #e5e5e5', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '20px', fontWeight: '600', margin: 0, color: '#000' }}>プロフィール</h1>
-        <button onClick={handleLogout} style={{ padding: '8px 16px', backgroundColor: '#e91e63', color: '#fff', border: 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}>ログアウト</button>
+      <div style={{ borderBottom: '1px solid #262626', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>プロフィール</h1>
+        <button 
+          onClick={handleLogout} 
+          style={{ padding: '8px 16px', backgroundColor: '#262626', color: '#fff', border: 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}>
+          ログアウト
+        </button>
       </div>
 
-      <div style={{ padding: '20px 16px' }}>
-        {/* プロフィール画像 + 統計 */}
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#e91e63', margin: '0 auto 16px' }} />
-          <p style={{ fontSize: '18px', fontWeight: '600', color: '#000', margin: 0 }}>
-            {profile.name || user?.email}
-            {profile.identityVerified && ' ✅'}
-          </p>
-          <p style={{ fontSize: '13px', color: '#666', margin: '4px 0 0 0' }}>{user?.email}</p>
+      {/* バナー */}
+      <div style={{ width: '100%', height: '200px', background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743)', position: 'relative' }} />
 
-          {/* 統計 */}
-          <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e5e5e5' }}>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '18px', fontWeight: '600', color: '#000', margin: 0 }}>{stats.posts}</p>
-              <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>投稿</p>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '18px', fontWeight: '600', color: '#000', margin: 0 }}>{stats.followers}</p>
-              <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>フォロワー</p>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '18px', fontWeight: '600', color: '#000', margin: 0 }}>{stats.following}</p>
-              <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>フォロー中</p>
-            </div>
+      {/* プロフィール情報 */}
+      <div style={{ padding: '0 16px', marginTop: '-50px', position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+          <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743)', border: '3px solid #000' }} />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {editing ? (
+              <button 
+                onClick={handleSave} 
+                disabled={loading}
+                style={{ padding: '10px 20px', backgroundColor: '#e6683c', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+                {loading ? '保存中...' : '保存'}
+              </button>
+            ) : (
+              <button 
+                onClick={() => setEditing(true)}
+                style={{ padding: '10px 20px', backgroundColor: '#262626', color: '#fff', border: '1px solid #262626', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+                編集
+              </button>
+            )}
+            <button 
+              onClick={() => router.push('/verify')}
+              style={{ padding: '10px 20px', backgroundColor: '#262626', color: '#fff', border: '1px solid #262626', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+              確認
+            </button>
+          </div>
+        </div>
+
+        {/* ユーザー名と認証バッジ */}
+        <p style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {profile.name || user?.email}
+          {profile.identityVerified && <span style={{ fontSize: '16px' }}>✅</span>}
+        </p>
+        <p style={{ fontSize: '13px', color: '#999', margin: '0 0 16px 0' }}>{user?.email}</p>
+
+        {/* 統計 */}
+        <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid #262626' }}>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>{stats.posts}</p>
+            <p style={{ fontSize: '12px', color: '#999', margin: '4px 0 0 0' }}>投稿</p>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>{stats.followers}</p>
+            <p style={{ fontSize: '12px', color: '#999', margin: '4px 0 0 0' }}>フォロワー</p>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>{stats.following}</p>
+            <p style={{ fontSize: '12px', color: '#999', margin: '4px 0 0 0' }}>フォロー中</p>
           </div>
         </div>
 
@@ -127,47 +157,67 @@ export default function ProfilePage() {
               placeholder="名前"
               value={profile.name}
               onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-              style={{ padding: '12px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', color: '#000' }}
+              style={{ padding: '12px', border: '1px solid #262626', borderRadius: '8px', fontSize: '14px', color: '#fff', backgroundColor: '#262626' }}
             />
             <textarea
               placeholder="自己紹介"
               value={profile.bio}
               onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-              style={{ padding: '12px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '14px', color: '#000', minHeight: '80px', fontFamily: 'inherit' }}
+              style={{ padding: '12px', border: '1px solid #262626', borderRadius: '8px', fontSize: '14px', color: '#fff', backgroundColor: '#262626', minHeight: '80px', fontFamily: 'inherit' }}
             />
-            {error && <p style={{ color: '#d32f2f', fontSize: '12px', margin: 0 }}>{error}</p>}
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={handleSave} disabled={loading} style={{ flex: 1, padding: '10px', backgroundColor: '#e91e63', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
-                {loading ? '保存中...' : '保存'}
-              </button>
-              <button onClick={() => setEditing(false)} style={{ flex: 1, padding: '10px', backgroundColor: '#f0f0f0', color: '#000', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>キャンセル</button>
-            </div>
+            {error && <p style={{ color: '#f91880', fontSize: '12px', margin: 0 }}>{error}</p>}
+            <button
+              onClick={() => setEditing(false)}
+              style={{ padding: '10px 20px', backgroundColor: '#262626', color: '#fff', border: '1px solid #262626', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+              キャンセル
+            </button>
           </div>
         ) : (
-          <>
-            <p style={{ fontSize: '14px', color: '#333', margin: '0 0 16px 0', minHeight: '40px' }}>{profile.bio || '自己紹介がまだ登録されていません'}</p>
-            <button onClick={() => setEditing(true)} style={{ width: '100%', padding: '10px', backgroundColor: '#e91e63', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', marginBottom: '20px' }}>
-              プロフィール編集
-            </button>
-          </>
+          <p style={{ fontSize: '14px', color: '#ccc', marginBottom: '20px', minHeight: '40px' }}>
+            {profile.bio || '自己紹介がまだ設定されていません'}
+          </p>
         )}
 
-        {/* 本人確認セクション */}
-        {!profile.identityVerified && (
-          <div style={{ backgroundColor: '#fff3e0', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-            <p style={{ fontSize: '14px', fontWeight: '600', color: '#e65100', marginBottom: '8px' }}>⚠️ 本人確認が必要です</p>
-            <p style={{ fontSize: '13px', color: '#e65100', margin: '0 0 12px 0' }}>安全なコミュニティを保つため、マイナンバーカード、運転免許証、またはパスポートでの本人確認をお願いしています。</p>
-            <button onClick={() => router.push('/verify')} style={{ width: '100%', padding: '10px', backgroundColor: '#e65100', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
-              本人確認を進める
-            </button>
+        {/* 本人確認状態 */}
+        {profile.identityVerified ? (
+          <div style={{ backgroundColor: '#1a3a1a', borderRadius: '8px', padding: '12px', marginBottom: '20px' }}>
+            <p style={{ fontSize: '13px', color: '#4caf50', margin: 0 }}>✅ 本人確認済み</p>
+          </div>
+        ) : (
+          <div style={{ backgroundColor: '#3a2a1a', borderRadius: '8px', padding: '12px', marginBottom: '20px' }}>
+            <p style={{ fontSize: '13px', color: '#ff9800', margin: 0 }}>⚠️ 本人確認が必要です</p>
           </div>
         )}
+      </div>
 
-        {profile.identityVerified && (
-          <div style={{ backgroundColor: '#e8f5e9', borderRadius: '12px', padding: '16px' }}>
-            <p style={{ fontSize: '14px', fontWeight: '600', color: '#2e7d32', marginBottom: '8px' }}>✅ 本人確認済み</p>
-            <p style={{ fontSize: '13px', color: '#2e7d32', margin: 0 }}>あなたのアカウントは本人確認済みです。安全なコミュニティ環境をご利用いただけます。</p>
-          </div>
+      {/* タブ */}
+      <div style={{ borderTop: '1px solid #262626', borderBottom: '1px solid #262626', display: 'flex', padding: '0 16px' }}>
+        {['posts', 'saved'].map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              flex: 1,
+              padding: '12px',
+              backgroundColor: 'transparent',
+              color: tab === t ? '#fff' : '#999',
+              border: 'none',
+              borderBottom: tab === t ? '2px solid #fff' : 'none',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '14px'
+            }}>
+            {t === 'posts' ? '投稿' : '保存済み'}
+          </button>
+        ))}
+      </div>
+
+      {/* コンテンツ */}
+      <div style={{ padding: '20px 16px', textAlign: 'center', color: '#999' }}>
+        {tab === 'posts' ? (
+          <p>投稿がありません</p>
+        ) : (
+          <p>保存済みのコンテンツがありません</p>
         )}
       </div>
     </div>
