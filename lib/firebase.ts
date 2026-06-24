@@ -3,7 +3,7 @@ import { getAuth } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAf0a-8i3p0xTd82j9yRhr0YDxWu0AwP8",
+  apiKey: "AIzaSyAfOa-8i3pOxTd82j9yRhrQYDxkWu0AwP8",
   authDomain: "safespace-d74dc.firebaseapp.com",
   databaseURL: "https://safespace-d74dc-default-rtdb.firebaseio.com",
   projectId: "safespace-d74dc",
