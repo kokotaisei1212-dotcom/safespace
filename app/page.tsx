@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { TabType, Theme, Lang } from '@/app/types';
 import { getColors } from '@/app/utils/theme';
 import { i18n } from '@/app/utils/i18n';
 import { useFirebase } from '@/app/hooks/useFirebase';
 import Auth from '@/app/components/Auth';
-import IDVerification from '@/app/components/IDVerification';
+import Onboarding from '@/app/components/Onboarding';
+import AdminDashboard from '@/app/components/AdminDashboard';
 import Home from '@/app/components/Home';
 import Search from '@/app/components/Search';
 import Profile from '@/app/components/Profile';
@@ -18,9 +19,12 @@ import Explore from '@/app/components/Explore';
 import Nav from '@/app/components/Nav';
 import TipModal from '@/app/components/TipModal';
 
+const ADMIN_EMAIL = 'admin@safespace.jp';
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [verified, setVerified] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [onboarded, setOnboarded] = useState(false);
   const [tab, setTab] = useState<TabType>('home');
   const [theme, setTheme] = useState<Theme>('dark');
   const [lang, setLang] = useState<Lang>('ja');
@@ -29,6 +33,7 @@ export default function App() {
   const [likedPosts, setLikedPosts] = useState<string[]>([]);
   const [viewingUser, setViewingUser] = useState<any>(null);
   const [tipModal, setTipModal] = useState<{ creatorId: string; creatorName: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { posts, users, profile, loadData, createPost, deletePost } = useFirebase();
   const c = getColors(theme);
@@ -41,18 +46,57 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
+        setIsAdmin(currentUser.email === ADMIN_EMAIL);
+        
+        // オンボーディング完了を確認
+        const onboardingComplete = localStorage.getItem(`safespace_onboarded_${currentUser.uid}`);
+        setOnboarded(onboardingComplete === 'true');
+        
         await loadData(currentUser.uid);
       }
+      setIsLoading(false);
     });
+
     return () => unsubscribe();
   }, [loadData]);
+
+  if (isLoading) {
+    return <div style={{ backgroundColor: '#000', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;
+  }
+
+  // 運営者ダッシュボード（ログイン不要）
+  if (isAdmin && !user) {
+    return (
+      <div style={{ backgroundColor: c.bg, color: c.text, minHeight: '100vh' }}>
+        <AdminDashboard c={c} transactions={[]} users={users} />
+      </div>
+    );
+  }
 
   if (!user) {
     return <Auth c={c} i18n={t} />;
   }
 
-  if (!verified) {
-    return <IDVerification c={c} onVerified={setVerified} />;
+  if (!onboarded) {
+    return (
+      <Onboarding
+        user={user}
+        c={c}
+        onComplete={() => {
+          localStorage.setItem(`safespace_onboarded_${user.uid}`, 'true');
+          setOnboarded(true);
+        }}
+      />
+    );
+  }
+
+  if (isAdmin) {
+    return (
+      <div style={{ backgroundColor: c.bg, color: c.text, minHeight: '100vh', paddingBottom: '80px' }}>
+        <AdminDashboard c={c} transactions={[]} users={users} />
+        <Nav tab={tab} c={c} onTabChange={setTab} />
+      </div>
+    );
   }
 
   const displayProfile = viewingUser || profile;
